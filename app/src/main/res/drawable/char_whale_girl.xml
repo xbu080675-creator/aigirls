@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI娘悬浮球 - 角色1：虎鲸娘·汐
+     原创素材，MIT License，免费使用可商用
+     灵感来源参考 DSH 鲸鱼娘（MIT 协议）：https://github.com/mmzm0808/dsh-ventus-whale
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- 圆形背景光晕 -->
+    <path
+        android:fillColor="#A3D4FF"
+        android:pathData="M60,10 m-50,0 a50,50 0,1 1,100 0 a50,50 0,1 1,-100 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,15 m-45,0 a45,45 0,1 1,90 0 a45,45 0,1 1,-90 0" />
+
+    <!-- 虎鲸头部轮廓（黑白配色） -->
+    <!-- 头顶 -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M60,20 C45,20 34,30 32,45 C30,60 38,72 52,78 C60,81 68,81 76,78 C90,72 98,60 96,45 C94,30 83,20 68,20 Z" />
+    <!-- 脸部白色区域 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35,42 C35,52 42,60 52,64 C58,66 62,66 68,64 C78,60 85,52 85,42 C82,50 74,56 66,58 C62,59 58,59 54,58 C46,56 38,50 35,42 Z" />
+    <!-- 眼睛上方虎鲸白斑 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,35 L44,31 L48,35 L44,39 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,35 L78,31 L82,35 L78,39 Z" />
+
+    <!-- 头发刘海 -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M40,28 C44,22 52,18 60,18 C68,18 76,22 80,28 C76,34 72,32 66,36 C62,32 58,32 54,36 C48,32 44,34 40,28 Z" />
+    <!-- 头顶呆毛 -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M60,16 C62,10 64,8 66,6 C64,12 62,14 60,16 Z" />
+
+    <!-- 眼睛 - 蓝色（虎鲸系） -->
+    <path
+        android:fillColor="#1E40AF"
+        android:pathData="M48,48 m-4,0 a4,5 0,1 1,8 0 a4,5 0,1 1,-8 0" />
+    <path
+        android:fillColor="#60A5FA"
+        android:pathData="M48,49 m-2.5,0 a2.5,3 0,1 1,5 0 a2.5,3 0,1 1,-5 0" />
+    <path
+        android:fillColor="#1E40AF"
+        android:pathData="M72,48 m-4,0 a4,5 0,1 1,8 0 a4,5 0,1 1,-8 0" />
+    <path
+        android:fillColor="#60A5FA"
+        android:pathData="M72,49 m-2.5,0 a2.5,3 0,1 1,5 0 a2.5,3 0,1 1,-5 0" />
+    <!-- 眼睛高光 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,46 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,46 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
+    <!-- 眼睛小高光 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,50 m-0.6,0 a0.6,0.6 0,1 1,1.2 0 a0.6,0.6 0,1 1,-1.2 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M73,50 m-0.6,0 a0.6,0.6 0,1 1,1.2 0 a0.6,0.6 0,1 1,-1.2 0" />
+
+    <!-- 腮红 -->
+    <path
+        android:fillColor="#FFCDD2"
+        android:pathData="M40,56 m-3,0 a3,2 0,1 1,6 0 a3,2 0,1 1,-6 0" />
+    <path
+        android:fillColor="#FFCDD2"
+        android:pathData="M80,56 m-3,0 a3,2 0,1 1,6 0 a3,2 0,1 1,-6 0" />
+
+    <!-- 嘴巴微笑 -->
+    <path
+        android:strokeColor="#F472B6"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M56,64 Q60,68 64,64" />
+
+    <!-- 头顶虎鲸小背鳍装饰 -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M58,14 L60,6 L62,14 Z" />
+
+    <!-- 侧边蓝色蝴蝶结 -->
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M86,38 L94,32 L96,42 L88,44 Z" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M86,38 L94,44 L96,36 L88,34 Z" />
+    <path
+        android:fillColor="#1D4ED8"
+        android:pathData="M89,39 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0" />
+</vector>

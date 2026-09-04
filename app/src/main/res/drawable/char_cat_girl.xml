@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI娘悬浮球 - 角色2：猫娘·奶糖
+     原创素材，MIT License，免费使用可商用
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <path
+        android:fillColor="#FFE4B5"
+        android:pathData="M60,10 m-50,0 a50,50 0,1 1,100 0 a50,50 0,1 1,-100 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,13 m-47,0 a47,47 0,1 1,94 0 a47,47 0,1 1,-94 0" />
+
+    <!-- 左耳（橘猫耳） -->
+    <path
+        android:fillColor="#F97316"
+        android:pathData="M25,35 L30,18 L44,28 Z" />
+    <path
+        android:fillColor="#FECACA"
+        android:pathData="M29,32 L33,22 L40,28 Z" />
+    <!-- 右耳 -->
+    <path
+        android:fillColor="#F97316"
+        android:pathData="M95,35 L90,18 L76,28 Z" />
+    <path
+        android:fillColor="#FECACA"
+        android:pathData="M91,32 L87,22 L80,28 Z" />
+
+    <!-- 橘色头发 + 脸部 -->
+    <path
+        android:fillColor="#FDBA74"
+        android:pathData="M60,22 C45,22 33,32 32,48 C30,65 40,78 55,82 C60,83 65,83 70,82 C86,78 96,65 94,48 C93,32 81,22 66,22 Z" />
+    <!-- 脸部皮肤 -->
+    <path
+        android:fillColor="#FFECD2"
+        android:pathData="M37,45 C37,58 45,68 56,71 C58,72 62,72 64,71 C75,68 83,58 83,45 C80,54 72,60 62,62 C58,63 56,63 52,62 C42,60 34,54 37,45 Z" />
+
+    <!-- 橘色刘海 -->
+    <path
+        android:fillColor="#EA580C"
+        android:pathData="M37,34 C42,28 50,24 60,24 C70,24 78,28 83,34 C80,40 76,38 70,42 C66,38 62,38 58,42 C52,38 48,40 44,38 C41,37 39,36 37,34 Z" />
+    <!-- 头顶呆毛 -->
+    <path
+        android:fillColor="#EA580C"
+        android:pathData="M58,18 C60,12 62,10 64,8 C62,14 60,16 58,18 Z" />
+
+    <!-- 耳朵内侧条纹 -->
+    <path
+        android:strokeColor="#C2410C"
+        android:strokeWidth="1.2"
+        android:pathData="M32,28 L34,24" />
+    <path
+        android:strokeColor="#C2410C"
+        android:strokeWidth="1.2"
+        android:pathData="M88,28 L86,24" />
+
+    <!-- 眼睛 - 琥珀色（猫眼竖瞳） -->
+    <path
+        android:fillColor="#FDE68A"
+        android:pathData="M48,49 m-4.5,0 a4.5,5 0,1 1,9 0 a4.5,5 0,1 1,-9 0" />
+    <path
+        android:fillColor="#78350F"
+        android:pathData="M48,49 m-1.5,0 a1.5,3.5 0,1 1,3 0 a1.5,3.5 0,1 1,-3 0" />
+    <path
+        android:fillColor="#FDE68A"
+        android:pathData="M72,49 m-4.5,0 a4.5,5 0,1 1,9 0 a4.5,5 0,1 1,-9 0" />
+    <path
+        android:fillColor="#78350F"
+        android:pathData="M72,49 m-1.5,0 a1.5,3.5 0,1 1,3 0 a1.5,3.5 0,1 1,-3 0" />
+    <!-- 眼睛高光 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,47 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,47 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
+
+    <!-- 腮红 -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M41,58 m-3,0 a3,2 0,1 1,6 0 a3,2 0,1 1,-6 0" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M79,58 m-3,0 a3,2 0,1 1,6 0 a3,2 0,1 1,-6 0" />
+
+    <!-- 猫鼻子 -->
+    <path
+        android:fillColor="#F472B6"
+        android:pathData="M58,62 L62,62 L60,65 Z" />
+    <!-- 猫嘴 3 形 -->
+    <path
+        android:strokeColor="#92400E"
+        android:strokeWidth="1.3"
+        android:strokeLineCap="round"
+        android:pathData="M60,65 L60,67" />
+    <path
+        android:strokeColor="#92400E"
+        android:strokeWidth="1.3"
+        android:strokeLineCap="round"
+        android:pathData="M60,67 Q57,70 55,68" />
+    <path
+        android:strokeColor="#92400E"
+        android:strokeWidth="1.3"
+        android:strokeLineCap="round"
+        android:pathData="M60,67 Q63,70 65,68" />
+
+    <!-- 猫胡须 -->
+    <path
+        android:strokeColor="#D97706"
+        android:strokeWidth="0.8"
+        android:pathData="M36,62 L46,63" />
+    <path
+        android:strokeColor="#D97706"
+        android:strokeWidth="0.8"
+        android:pathData="M36,65 L46,65" />
+    <path
+        android:strokeColor="#D97706"
+        android:strokeWidth="0.8"
+        android:pathData="M84,62 L74,63" />
+    <path
+        android:strokeColor="#D97706"
+        android:strokeWidth="0.8"
+        android:pathData="M84,65 L74,65" />
+
+    <!-- 头顶铃铛（项圈小装饰） -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M50,80 L70,80 L70,84 L50,84 Z" />
+    <path
+        android:fillColor="#FCD34D"
+        android:pathData="M60,83 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#B45309"
+        android:pathData="M59,85 L61,85 L61,87 L59,87 Z" />
+</vector>

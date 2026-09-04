@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI娘悬浮球 - 角色3：女仆娘·樱
+     原创素材，MIT License，免费使用可商用
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <path
+        android:fillColor="#FBCFE8"
+        android:pathData="M60,10 m-50,0 a50,50 0,1 1,100 0 a50,50 0,1 1,-100 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,13 m-47,0 a47,47 0,1 1,94 0 a47,47 0,1 1,-94 0" />
+
+    <!-- 女仆头饰（白色发箍） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,28 L90,28 L88,36 L32,36 Z" />
+    <!-- 头饰左侧蕾丝花边 -->
+    <path
+        android:fillColor="#F9A8D4"
+        android:pathData="M28,28 Q30,22 34,25 Q36,20 40,24 Q44,20 48,25 Q50,21 52,28 Z" />
+    <!-- 头饰右侧蕾丝 -->
+    <path
+        android:fillColor="#F9A8D4"
+        android:pathData="M92,28 Q90,22 86,25 Q84,20 80,24 Q76,20 72,25 Q70,21 68,28 Z" />
+
+    <!-- 深粉色长发 + 脸 -->
+    <path
+        android:fillColor="#EC4899"
+        android:pathData="M60,24 C45,24 33,34 32,50 C30,68 40,80 55,84 C60,85 65,85 70,84 C86,80 96,68 94,50 C93,34 81,24 66,24 Z" />
+    <!-- 双马尾侧发束 -->
+    <path
+        android:fillColor="#BE185D"
+        android:pathData="M28,52 C22,60 20,72 26,82 C28,86 32,88 34,84 C30,76 32,64 33,56 Z" />
+    <path
+        android:fillColor="#BE185D"
+        android:pathData="M92,52 C98,60 100,72 94,82 C92,86 88,88 86,84 C90,76 88,64 87,56 Z" />
+    <!-- 脸部皮肤 -->
+    <path
+        android:fillColor="#FFECD2"
+        android:pathData="M37,46 C37,58 45,68 56,71 C58,72 62,72 64,71 C75,68 83,58 83,46 C80,55 72,61 62,63 C58,64 56,64 52,63 C42,61 34,55 37,46 Z" />
+
+    <!-- 粉色刘海 + 白色头带 -->
+    <path
+        android:fillColor="#BE185D"
+        android:pathData="M37,36 C42,30 50,26 60,26 C70,26 78,30 83,36 L83,42 C78,38 72,40 70,44 C66,40 62,40 58,44 C54,40 48,40 44,38 C41,37 39,36 37,36 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35,35 L85,35 L84,39 L36,39 Z" />
+    <!-- 头顶中央粉色蝴蝶结 -->
+    <path
+        android:fillColor="#F472B6"
+        android:pathData="M55,20 L45,14 L45,28 L56,24 Z" />
+    <path
+        android:fillColor="#F472B6"
+        android:pathData="M65,20 L75,14 L75,28 L64,24 Z" />
+    <path
+        android:fillColor="#DB2777"
+        android:pathData="M58,20 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+
+    <!-- 眼睛 - 粉色 -->
+    <path
+        android:fillColor="#BE185D"
+        android:pathData="M48,50 m-4,0 a4,5 0,1 1,8 0 a4,5 0,1 1,-8 0" />
+    <path
+        android:fillColor="#F9A8D4"
+        android:pathData="M48,51 m-2.5,0 a2.5,3 0,1 1,5 0 a2.5,3 0,1 1,-5 0" />
+    <path
+        android:fillColor="#BE185D"
+        android:pathData="M72,50 m-4,0 a4,5 0,1 1,8 0 a4,5 0,1 1,-8 0" />
+    <path
+        android:fillColor="#F9A8D4"
+        android:pathData="M72,51 m-2.5,0 a2.5,3 0,1 1,5 0 a2.5,3 0,1 1,-5 0" />
+    <!-- 高光 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,48 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,48 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,52 m-0.6,0 a0.6,0.6 0,1 1,1.2 0 a0.6,0.6 0,1 1,-1.2 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M73,52 m-0.6,0 a0.6,0.6 0,1 1,1.2 0 a0.6,0.6 0,1 1,-1.2 0" />
+
+    <!-- 腮红 -->
+    <path
+        android:fillColor="#FBCFE8"
+        android:pathData="M40,59 m-3,0 a3,2 0,1 1,6 0 a3,2 0,1 1,-6 0" />
+    <path
+        android:fillColor="#FBCFE8"
+        android:pathData="M80,59 m-3,0 a3,2 0,1 1,6 0 a3,2 0,1 1,-6 0" />
+
+    <!-- 嘴巴害羞微笑 -->
+    <path
+        android:strokeColor="#F472B6"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M56,66 Q60,69 64,66" />
+
+    <!-- 左右女仆蝴蝶结（马尾上） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,62 L16,58 L16,68 L23,66 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,62 L16,66 L23,64 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M98,62 L104,58 L104,68 L97,66 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M98,62 L104,66 L97,64 Z" />
+</vector>

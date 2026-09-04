@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,22 m-28,0 a28,28 0,1 1,56 0 a28,28 0,1 1,-56 0" />
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M54,28 C42,28 34,36 33,47 C32,58 38,65 48,69 C54,71 60,71 66,69 C76,65 82,58 81,47 C80,36 72,28 60,28 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,44 C36,52 43,58 51,61 C58,63 66,62 73,58 C79,52 83,44 83,44 C79,50 70,55 60,56 C50,56 41,50 36,44 Z" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M46,48 m-2.5,0 a2.5,3 0,1 1,5 0 a2.5,3 0,1 1,-5 0" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M62,48 m-2.5,0 a2.5,3 0,1 1,5 0 a2.5,3 0,1 1,-5 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,46 m-0.8,0 a0.8,0.8 0,1 1,1.6 0 a0.8,0.8 0,1 1,-1.6 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M61,46 m-0.8,0 a0.8,0.8 0,1 1,1.6 0 a0.8,0.8 0,1 1,-1.6 0" />
+    <path
+        android:strokeColor="#F472B6"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M49,60 Q54,64 59,60" />
+    <!-- 虎鲸小背鳍 -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M52,20 L54,12 L56,20 Z" />
+</vector>

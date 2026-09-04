@@ -1,0 +1,21 @@
+# ===== Gradle =====
+/build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.properties
+**/build/
+
+# ===== Android =====
+*.apk
+*.aab
+*.key
+*.jks
+local.properties
+
+# ===== IDE =====
+.idea/
+*.iml
+.DS_Store
+.vscode/
+
+# ===== Logs =====
+*.log
