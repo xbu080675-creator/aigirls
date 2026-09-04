@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -85,14 +86,12 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.action_none),
         )
         val values = listOf("toolbar", "hello", "settings", "none")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, options)
-        binding.actvClickAction.setAdapter(adapter)
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerClickAction.adapter = adapter
         val idx = values.indexOf(Prefs.clickAction).coerceAtLeast(0)
-        binding.actvClickAction.setText(options[idx], false)
-        binding.actvClickAction.setOnItemClickListener { _, _, i, _ ->
-            binding.actvClickAction.tag = values[i]
-        }
-        binding.actvClickAction.tag = values[idx]
+        binding.spinnerClickAction.setSelection(idx)
+        binding.spinnerClickAction.tag = values
     }
 
     private fun saveAndRestart() {
@@ -106,7 +105,8 @@ class SettingsActivity : AppCompatActivity() {
             Prefs.wanderMode = binding.switchWander.isChecked
             Prefs.showBalance = binding.switchBalance.isChecked
             Prefs.dsApiKey = binding.etApiKey.text.toString().trim()
-            Prefs.clickAction = (binding.actvClickAction.tag as? String) ?: "toolbar"
+            val values = binding.spinnerClickAction.tag as? List<String> ?: listOf("toolbar", "hello", "settings", "none")
+            Prefs.clickAction = values.getOrElse(binding.spinnerClickAction.selectedItemPosition) { "toolbar" }
 
             Toast.makeText(this, "已保存，正在重启悬浮球…", Toast.LENGTH_SHORT).show()
 

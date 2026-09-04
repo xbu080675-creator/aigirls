@@ -223,24 +223,13 @@
                         android:text="@string/click_action"
                         android:textColor="@color/text_primary" />
 
-                    <com.google.android.material.textfield.TextInputLayout
+                    <Spinner
+                        android:id="@+id/spinnerClickAction"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        app:boxCornerRadiusTopStart="12dp"
-                        app:boxCornerRadiusTopEnd="12dp"
-                        app:boxCornerRadiusBottomStart="12dp"
-                        app:boxCornerRadiusBottomEnd="12dp">
-
-                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                            android:id="@+id/actvClickAction"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:paddingVertical="6dp"
-                            android:text="@string/action_hello" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                        android:background="@drawable/bg_spinner"
+                        android:padding="12dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

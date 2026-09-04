@@ -415,7 +415,7 @@ class FloatBallService : Service() {
         val p = ballParams ?: return
         val tb = LayoutInflater.from(this).inflate(R.layout.float_toolbar_layout, null, false)
 
-        setupTbBtn(tb.findViewById(R.id.btnChat), R.drawable.ic_tb_settings, R.string.tb_chat) { showChatDialog() }
+        setupTbBtn(tb.findViewById(R.id.btnChat), R.drawable.ic_chat, R.string.tb_chat) { showChatDialog() }
         setupTbBtn(tb.findViewById(R.id.btnRename), R.drawable.ic_rename, R.string.tb_rename) { showRenameDialog() }
         setupTbBtn(tb.findViewById(R.id.btnReset), R.drawable.ic_reset, R.string.tb_reset) { resetPosition() }
         setupTbBtn(tb.findViewById(R.id.btnSpin), R.drawable.ic_spin, R.string.tb_spin) { doSpin() }
