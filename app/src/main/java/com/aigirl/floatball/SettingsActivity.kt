@@ -18,8 +18,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var charAdapter: CharacterAdapter
 
-    private val density by lazy { resources.displayMetrics.density }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
@@ -53,8 +51,8 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupSliders() {
-        val initSizePx = Prefs.sizePx
-        val initSizeDp = (initSizePx / density).toFloat().coerceIn(60f, 140f)
+        // Prefs.sizeDp 已是 5 的倍数（Slider stepSize=5），直接赋值不会崩
+        val initSizeDp = Prefs.sizeDp.toFloat()
         binding.sliderSize.value = initSizeDp
         binding.tvSizeValue.text = "${initSizeDp.toInt()}dp"
         binding.sliderSize.addOnChangeListener { _, value, _ ->
@@ -97,7 +95,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveAndRestart() {
         try {
             Prefs.characterId = charAdapter.getSelectedId()
-            Prefs.sizePx = (binding.sliderSize.value * density).toInt()
+            Prefs.sizeDp = binding.sliderSize.value.toInt()
             Prefs.opacity = binding.sliderOpacity.value.toInt()
             Prefs.autoEdge = binding.switchAutoEdge.isChecked
             Prefs.showHelloOnStart = binding.switchHello.isChecked

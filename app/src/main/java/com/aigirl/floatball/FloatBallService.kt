@@ -457,6 +457,8 @@ class FloatBallService : Service() {
 
     private fun hideToolbar() {
         val tb = toolbarView ?: return
+        // 先解除引用，允许后续立即创建新工具栏
+        toolbarView = null
         val s = ScaleAnimation(1f, 0.5f, 1f, 0.5f,
             Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 1f
         ).apply { duration = 150L }
@@ -466,11 +468,13 @@ class FloatBallService : Service() {
             setAnimationListener(object : Animation.AnimationListener {
                 override fun onAnimationStart(x: Animation?) {}
                 override fun onAnimationRepeat(x: Animation?) {}
-                override fun onAnimationEnd(x: Animation?) { removeToolbarSafe() }
+                override fun onAnimationEnd(x: Animation?) {
+                    // 关键：删除本次捕获的 tb，而不是重新读 toolbarView（可能已变）
+                    try { wm.removeView(tb) } catch (_: Throwable) {}
+                }
             })
             tb.startAnimation(this)
         }
-        toolbarView = null // 立即置空防重复
     }
 
     private fun setupTbBtn(container: View, iconRes: Int, labelRes: Int, action: () -> Unit) {

@@ -77,9 +77,22 @@ object Prefs {
         get() = s().getBoolean("enabled", false)
         set(v) = s().edit().putBoolean("enabled", v).apply()
 
-    var sizePx: Int
-        get() = s().getInt("size_px", 200)
-        set(v) = s().edit().putInt("size_px", v).apply()
+    var sizeDp: Int
+        get() {
+            val sp = s()
+            // 优先读 dp；若只有旧的 px 值则一次性迁移并吸附到 5dp 刻度
+            if (sp.contains("size_dp")) return sp.getInt("size_dp", 80)
+            val px = sp.getInt("size_px", 200)
+            val rawDp = px / App.instance.resources.displayMetrics.density
+            val dp = (60f + kotlin.math.round((rawDp - 60f) / 5f) * 5f)
+                .toInt().coerceIn(60, 140)
+            sp.edit().putInt("size_dp", dp).remove("size_px").apply()
+            return dp
+        }
+        set(v) = s().edit().putInt("size_dp", v.coerceIn(60, 140)).apply()
+
+    /** 由 dp 计算得到的像素值，仅 Service 创建悬浮窗时使用 */
+    val sizePx: Int get() = (sizeDp * App.instance.resources.displayMetrics.density).toInt()
 
     var opacity: Int
         get() = s().getInt("opacity", 100)
@@ -124,6 +137,4 @@ object Prefs {
     var lastY: Int
         get() = s().getInt("last_y", -1)
         set(v) = s().edit().putInt("last_y", v).apply()
-
-    val sizeDp: Int get() = (sizePx / App.instance.resources.displayMetrics.density).toInt()
 }
