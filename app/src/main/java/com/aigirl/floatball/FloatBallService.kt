@@ -59,6 +59,8 @@ class FloatBallService : Service() {
     private var ballView: View? = null
     private var bubbleView: View? = null
     private var toolbarView: View? = null
+    // 追踪所有已 addView 到 WindowManager 的工具栏，防止幽灵窗口泄漏
+    private val toolbarViews = mutableSetOf<View>()
     private var heartView: ImageView? = null
     private var ballParams: WindowManager.LayoutParams? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -156,7 +158,7 @@ class FloatBallService : Service() {
         balanceRunnable?.let { handler.removeCallbacks(it) }; balanceRunnable = null
         hideBalanceView()
         cancelAllAnimations()
-        removeToolbarSafe()
+        removeAllToolbars()
         removeBubbleImmediate()
         removeBallViewSafe()
     }
@@ -175,8 +177,29 @@ class FloatBallService : Service() {
 
     private fun removeToolbarSafe() {
         val v = toolbarView ?: return
+        removeToolbar(v)
+    }
+
+    /** 删除指定工具栏 View（同步、确定性） */
+    private fun removeToolbar(tb: View) {
+        toolbarViews.remove(tb)
+        if (toolbarView === tb) toolbarView = null
+        try {
+            tb.clearAnimation()
+            wm.removeViewImmediate(tb)
+        } catch (_: Throwable) {}
+    }
+
+    /** 清理所有工具栏（含幽灵窗口），用于 Service 销毁 */
+    private fun removeAllToolbars() {
+        toolbarViews.toList().forEach { tb ->
+            try {
+                tb.clearAnimation()
+                wm.removeViewImmediate(tb)
+            } catch (_: Throwable) {}
+        }
+        toolbarViews.clear()
         toolbarView = null
-        try { wm.removeView(v) } catch (_: Throwable) {}
     }
 
     // ---------- 创建悬浮球 ----------
@@ -446,6 +469,7 @@ class FloatBallService : Service() {
         tp.y = clampY(tp.y, th)
 
         try { wm.addView(tb, tp) } catch (_: Throwable) { return }
+        toolbarViews.add(tb)
         toolbarView = tb
 
         val s = ScaleAnimation(0.5f, 1f, 0.5f, 1f,
@@ -457,24 +481,10 @@ class FloatBallService : Service() {
 
     private fun hideToolbar() {
         val tb = toolbarView ?: return
-        // 先解除引用，允许后续立即创建新工具栏
+        // 同步删除：先解除引用，再立即从 WindowManager 移除，
+        // 避免旧 View 未销毁就允许新建导致幽灵窗口叠加
         toolbarView = null
-        val s = ScaleAnimation(1f, 0.5f, 1f, 0.5f,
-            Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 1f
-        ).apply { duration = 150L }
-        val a = AlphaAnimation(1f, 0f).apply { duration = 150L }
-        AnimationSet(true).apply {
-            addAnimation(s); addAnimation(a)
-            setAnimationListener(object : Animation.AnimationListener {
-                override fun onAnimationStart(x: Animation?) {}
-                override fun onAnimationRepeat(x: Animation?) {}
-                override fun onAnimationEnd(x: Animation?) {
-                    // 关键：删除本次捕获的 tb，而不是重新读 toolbarView（可能已变）
-                    try { wm.removeView(tb) } catch (_: Throwable) {}
-                }
-            })
-            tb.startAnimation(this)
-        }
+        removeToolbar(tb)
     }
 
     private fun setupTbBtn(container: View, iconRes: Int, labelRes: Int, action: () -> Unit) {
