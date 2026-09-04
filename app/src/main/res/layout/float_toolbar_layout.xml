@@ -10,6 +10,8 @@
     android:paddingVertical="8dp">
 
     <include layout="@layout/item_toolbar_btn"
+        android:id="@+id/btnChat" />
+    <include layout="@layout/item_toolbar_btn"
         android:id="@+id/btnRename" />
     <include layout="@layout/item_toolbar_btn"
         android:id="@+id/btnReset" />

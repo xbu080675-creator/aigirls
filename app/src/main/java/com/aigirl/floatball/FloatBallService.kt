@@ -32,14 +32,17 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationCompat
 import com.google.android.material.imageview.ShapeableImageView
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
 /**
  * 悬浮球前台服务
- * 参考 DSH 鲸鱼娘功能：拖拽、工具栏（改名/重置/转圈/爱心/设置/关闭）、气泡、动画
+ * 改编自 wngyj/AI_Bento (MIT) 的 PC 桌面宠物流程，移植到 Android 端
+ * 功能：拖拽、工具栏（聊天/改名/重置/转圈/爱心/设置/关闭）、气泡、三视图行走、余额显示、AI 对话
  */
 class FloatBallService : Service() {
 
@@ -76,6 +79,21 @@ class FloatBallService : Service() {
     private var bubbleToken = 0
     private var breatheRunnable: Runnable? = null
     private var blinkRunnable: Runnable? = null
+
+    // 散步模式
+    private var wanderRunnable: Runnable? = null
+    private var wanderStepX = 0f
+    private var wanderStepY = 0f
+    private var wanderStepsLeft = 0
+    private var isWandering = false
+
+    // 对话历史
+    private val chatHistory = mutableListOf<Pair<String, String>>()
+    private var chatBusy = false
+
+    // 余额标签
+    private var balanceView: TextView? = null
+    private var balanceRunnable: Runnable? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -135,6 +153,9 @@ class FloatBallService : Service() {
     private fun hideFloatBall() {
         helloToken++
         bubbleToken++
+        stopWander()
+        balanceRunnable?.let { handler.removeCallbacks(it) }; balanceRunnable = null
+        hideBalanceView()
         cancelAllAnimations()
         removeToolbarSafe()
         removeBubbleImmediate()
@@ -200,6 +221,8 @@ class FloatBallService : Service() {
         startEnterAnimation(ball)
         startBreatheAnimation(ball.findViewById(R.id.flBallRoot))
         startBlinkRoutine()
+        startWanderIfEnabled()
+        startBalanceLoop()
     }
 
     private fun refreshAppearance() {
@@ -240,6 +263,7 @@ class FloatBallService : Service() {
                 startParamsX = p.x
                 startParamsY = p.y
                 hideToolbar()
+                stopWander() // 拖拽时停止散步
                 ball.animate().cancel()
                 ball.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120L)
                     .setInterpolator(OvershootInterpolator()).start()
@@ -268,6 +292,7 @@ class FloatBallService : Service() {
                     if (Prefs.autoEdge) animateToNearestEdge(ball, p)
                     Prefs.lastX = p.x
                     Prefs.lastY = p.y
+                    handler.postDelayed({ startWanderIfEnabled() }, 500)
                 } else {
                     // 判定单击/双击
                     val now = System.currentTimeMillis()
@@ -391,13 +416,15 @@ class FloatBallService : Service() {
         val p = ballParams ?: return
         val tb = LayoutInflater.from(this).inflate(R.layout.float_toolbar_layout, null, false)
 
+        setupTbBtn(tb.findViewById(R.id.btnChat), R.drawable.ic_tb_settings, R.string.tb_chat) { showChatDialog() }
         setupTbBtn(tb.findViewById(R.id.btnRename), R.drawable.ic_rename, R.string.tb_rename) { showRenameDialog() }
         setupTbBtn(tb.findViewById(R.id.btnReset), R.drawable.ic_reset, R.string.tb_reset) { resetPosition() }
         setupTbBtn(tb.findViewById(R.id.btnSpin), R.drawable.ic_spin, R.string.tb_spin) { doSpin() }
         setupTbBtn(tb.findViewById(R.id.btnHeart), R.drawable.ic_heart, R.string.tb_heart) { doHeart() }
         setupTbBtn(tb.findViewById(R.id.btnSettings), R.drawable.ic_tb_settings, R.string.tb_settings) { openSettings() }
         setupTbBtn(tb.findViewById(R.id.btnClose), R.drawable.ic_close, R.string.tb_close) {
-            hideToolbar(); showFloatBall(forceRefresh = true)
+            hideToolbar()
+            stopSelf()
         }
 
         tb.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
@@ -480,6 +507,222 @@ class FloatBallService : Service() {
             else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
         )
         dialog.show()
+    }
+
+    // ---------- AI 对话 ----------
+
+    @SuppressLint("InflateParams")
+    private fun showChatDialog() {
+        if (chatBusy) { showBubbleText("等等，上一句还没回完呢"); return }
+        val input = EditText(this).apply {
+            hint = getString(R.string.chat_hint)
+            setPadding(40, 30, 40, 10)
+        }
+        val dialog = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog)
+            .setTitle(R.string.tb_chat)
+            .setView(input)
+            .setPositiveButton("发送") { _, _ ->
+                val msg = input.text.toString().trim()
+                if (msg.isNotEmpty()) doChat(msg)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.window?.setType(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+        )
+        dialog.show()
+    }
+
+    private fun doChat(msg: String) {
+        chatBusy = true
+        showBubbleText("思考中…")
+        DeepSeekApi.chat(Prefs.dsApiKey, msg, chatHistory,
+            onResult = { reply ->
+                chatBusy = false
+                chatHistory.add(msg to reply)
+                if (chatHistory.size > 40) chatHistory.removeAt(0)
+                showBubbleText(reply)
+            },
+            onError = { err ->
+                chatBusy = false
+                showBubbleText(err)
+            }
+        )
+    }
+
+    private fun showBubbleText(text: String) {
+        val p = ballParams ?: return
+        removeBubbleImmediate()
+        bubbleToken++
+        val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
+        view.findViewById<TextView>(R.id.tvBubbleText).text = text
+        view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val bw = view.measuredWidth
+        val bh = view.measuredHeight
+        val ballCenterX = p.x + p.width / 2
+        val onLeftSide = ballCenterX < screenSize.x / 2
+        val bp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                    or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT,
+        )
+        bp.gravity = Gravity.TOP or Gravity.LEFT
+        bp.x = if (onLeftSide) p.x + p.width - 12 else max(0, p.x - bw + 12)
+        bp.y = max(0, p.y + p.height / 2 - bh / 2)
+        bp.x = clampX(bp.x, bw); bp.y = clampY(bp.y, bh)
+        try { wm.addView(view, bp) } catch (_: Throwable) { return }
+        bubbleView = view
+        val anim = AlphaAnimation(0f, 1f).apply { duration = 200L }
+        view.startAnimation(anim)
+        val token = bubbleToken
+        handler.postDelayed({ if (token == bubbleToken) hideBubbleAnimated() }, BUBBLE_DURATION_MS)
+    }
+
+    // ---------- 散步模式 & 三视图切换 ----------
+
+    private fun startWanderIfEnabled() {
+        if (!Prefs.wanderMode) { stopWander(); return }
+        if (isWandering) return
+        isWandering = true
+        scheduleNextWander()
+    }
+
+    private fun stopWander() {
+        isWandering = false
+        wanderRunnable?.let { handler.removeCallbacks(it) }; wanderRunnable = null
+        // 回到正面
+        switchView(CharacterStore.find(Prefs.characterId).drawableRes, mirror = false)
+    }
+
+    private fun scheduleNextWander() {
+        if (!isWandering) return
+        val delay = (800..2200).random().toLong()
+        wanderRunnable = Runnable {
+            if (!isWandering) return@Runnable
+            // 随机方向与步数
+            val angle = (Math.random() * 2 * Math.PI).toFloat()
+            val speed = 1.5f + kotlin.random.Random.nextFloat() * 2.0f
+            wanderStepX = kotlin.math.cos(angle) * speed
+            wanderStepY = kotlin.math.sin(angle) * speed
+            wanderStepsLeft = (15..45).random()
+            switchViewForDirection(wanderStepX, wanderStepY)
+            wanderTick()
+        }
+        handler.postDelayed(wanderRunnable!!, delay)
+    }
+
+    private fun wanderTick() {
+        if (!isWandering || wanderStepsLeft <= 0) {
+            scheduleNextWander()
+            return
+        }
+        val ball = ballView ?: return
+        val p = ballParams ?: return
+        p.x = clampX(p.x + wanderStepX.toInt(), p.width)
+        p.y = clampY(p.y + wanderStepY.toInt(), p.height)
+        // 撞墙就停下换方向
+        if (p.x <= 0 || p.x >= screenSize.x - p.width || p.y <= 0 || p.y >= screenSize.y - p.height) {
+            wanderStepsLeft = 0
+            safeUpdate(ball, p)
+            scheduleNextWander()
+            return
+        }
+        safeUpdate(ball, p)
+        wanderStepsLeft--
+        if (wanderStepsLeft > 0) {
+            handler.postDelayed({ wanderTick() }, 30L)
+        } else {
+            scheduleNextWander()
+        }
+    }
+
+    private fun switchViewForDirection(dx: Float, dy: Float) {
+        val def = CharacterStore.find(Prefs.characterId)
+        if (!def.hasThreeViews) return
+        val adx = abs(dx); val ady = abs(dy)
+        when {
+            adx >= ady -> {
+                // 左右走用侧面；向右走镜像
+                switchView(def.sideRes, mirror = dx > 0)
+            }
+            dy < 0 -> {
+                // 向上走用背面
+                switchView(def.backRes, mirror = false)
+            }
+            else -> {
+                // 向下走用正面
+                switchView(def.drawableRes, mirror = false)
+            }
+        }
+    }
+
+    private fun switchView(@DrawableRes res: Int, mirror: Boolean) {
+        if (res == 0) return
+        val ball = ballView ?: return
+        val iv = ball.findViewById<ShapeableImageView>(R.id.ivCharacter)
+        iv.setImageResource(res)
+        iv.scaleX = if (mirror) -1f else 1f
+    }
+
+    // ---------- 余额显示 ----------
+
+    private fun refreshBalanceView() {
+        if (!Prefs.showBalance) { hideBalanceView(); return }
+        val p = ballParams ?: return
+        if (balanceView == null) {
+            val tv = TextView(this).apply {
+                setTextColor(0xFFFFFFFF.toInt())
+                setBackgroundColor(0xE616A34A.toInt())
+                setPadding(16, 6, 16, 6)
+                textSize = 11f
+            }
+            val lp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                overlayType(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                        or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT,
+            )
+            lp.gravity = Gravity.TOP or Gravity.LEFT
+            try { wm.addView(tv, lp) } catch (_: Throwable) { return }
+            balanceView = tv
+        }
+        val tv = balanceView ?: return
+        tv.text = "余额查询中…"
+        val lp = tv.layoutParams as WindowManager.LayoutParams
+        lp.x = p.x + p.width / 2 - 60
+        lp.y = p.y + p.height + 4
+        safeUpdate(tv, lp)
+        DeepSeekApi.balance(Prefs.dsApiKey) { text, ok ->
+            handler.post {
+                balanceView?.text = text
+                balanceView?.setBackgroundColor(if (ok) 0xE616A34A.toInt() else 0xE6DC2626.toInt())
+            }
+        }
+    }
+
+    private fun hideBalanceView() {
+        balanceView?.let { try { wm.removeView(it) } catch (_: Throwable) {} }
+        balanceView = null
+    }
+
+    private fun startBalanceLoop() {
+        balanceRunnable?.let { handler.removeCallbacks(it) }
+        if (!Prefs.showBalance) return
+        refreshBalanceView()
+        balanceRunnable = Runnable {
+            refreshBalanceView()
+            handler.postDelayed(balanceRunnable!!, 30000L)
+        }
+        handler.postDelayed(balanceRunnable!!, 30000L)
     }
 
     private fun resetPosition() {

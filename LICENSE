@@ -21,14 +21,32 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ======================================================================
-角色素材版权说明（Character Assets Licensing）
+第三方素材与代码致谢（Third-Party Assets & Code Attribution）
 ======================================================================
-本项目 drawable 目录下所有以 char_ 开头命名的角色图像（Vector Drawable）
-（包括 char_whale_girl.xml / char_cat_girl.xml / char_maid_girl.xml
-  char_mecha_girl.xml / char_mage_girl.xml）均为原创，采用上述 MIT License
-免费发布，个人与商业项目均可自由使用、修改、分发。
 
-其中虎鲸娘·汐 的角色配色和轮廓灵感来源于 MIT 协议开源项目：
-  - dsh-ventus-whale（https://github.com/mmzm0808/dsh-ventus-whale, MIT）
-本项目并未直接复制该仓库的任何代码或素材，仅参考其虎鲸 logo 的黑白造型，
-并重新以 Vector Drawable 手工绘制为二次元 AI 娘头像。
+1. 鲸鱼娘·大肥鱼 三视图精灵图（whale_front.png / whale_side.png / whale_back.png）
+   以及桌面宠物核心交互逻辑（三视图行走、气泡、余额显示、AI 对话）：
+   移植并改编自 MIT 协议开源项目 wngyj/AI_Bento
+   https://github.com/wngyj/AI_Bento
+   Copyright (c) wngyj — MIT License
+
+2. 鲸鱼娘·大肥鱼 角色形象原图：
+   由 上善无形老师 创作，采用 CC BY-NC-SA 4.0 协议发布。
+   本项目基于该形象进行二次创作（抠图、切三视图、适配 Android 端），
+   非商业用途。如需商业使用，请联系原作者另行授权。
+   CC BY-NC-SA 4.0: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+3. DeepSeek 余额显示功能：
+   移植自 MeteorNOX/DeepSeek-Balance-Whale-Widget（MIT）
+   https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget
+
+4. 其他 AI 角色头像（char_chatgpt / char_claude / char_gemini）：
+   为 AI 品牌的二创风格头像，仅用于非商业个人项目，
+   各 AI 品牌名称及商标归其各自所有者所有。
+
+======================================================================
+素材许可说明
+======================================================================
+- 代码部分：MIT License（见上文）
+- 鲸鱼娘三视图素材：CC BY-NC-SA 4.0（上善无形老师，非商业）
+- 使用本项目素材或代码时，请保留以上致谢信息。

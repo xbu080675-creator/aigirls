@@ -7,45 +7,51 @@ import androidx.annotation.StringRes
 
 /**
  * AI 拟人化角色定义 & 偏好管理
- * 角色图片为二创风格，仅供非商业用途学习交流
+ * 鲸鱼娘三视图素材改编自 wngyj/AI_Bento (MIT)，原图作者：上善无形老师 (CC BY-NC-SA 4.0)
  */
 data class CharacterDef(
     val id: String,
     @DrawableRes val drawableRes: Int,
+    @DrawableRes val sideRes: Int = 0,   // 侧面（向左走；向右走自动镜像）
+    @DrawableRes val backRes: Int = 0,   // 背面（向上走）
     @StringRes val nameRes: Int,
     @StringRes val helloRes: Int,
     val accentColor: String,
+    val hasThreeViews: Boolean = false,
 )
 
 object CharacterStore {
     val CHARACTERS = listOf(
         CharacterDef(
             "deepseek",
-            R.drawable.char_deepseek,
+            R.drawable.whale_front,
+            R.drawable.whale_side,
+            R.drawable.whale_back,
             R.string.char_deepseek_name,
             R.string.hello_deepseek,
             "#3B82F6",
+            hasThreeViews = true,
         ),
         CharacterDef(
             "chatgpt",
             R.drawable.char_chatgpt,
-            R.string.char_chatgpt_name,
-            R.string.hello_chatgpt,
-            "#22C55E",
+            nameRes = R.string.char_chatgpt_name,
+            helloRes = R.string.hello_chatgpt,
+            accentColor = "#22C55E",
         ),
         CharacterDef(
             "claude",
             R.drawable.char_claude,
-            R.string.char_claude_name,
-            R.string.hello_claude,
-            "#F59E0B",
+            nameRes = R.string.char_claude_name,
+            helloRes = R.string.hello_claude,
+            accentColor = "#F59E0B",
         ),
         CharacterDef(
             "gemini",
             R.drawable.char_gemini,
-            R.string.char_gemini_name,
-            R.string.hello_gemini,
-            "#8B5CF6",
+            nameRes = R.string.char_gemini_name,
+            helloRes = R.string.hello_gemini,
+            accentColor = "#8B5CF6",
         ),
     )
 
@@ -98,6 +104,18 @@ object Prefs {
     var heartEnabled: Boolean
         get() = s().getBoolean("heart_enabled", true)
         set(v) = s().edit().putBoolean("heart_enabled", v).apply()
+
+    var wanderMode: Boolean
+        get() = s().getBoolean("wander_mode", true)
+        set(v) = s().edit().putBoolean("wander_mode", v).apply()
+
+    var dsApiKey: String
+        get() = s().getString("ds_api_key", "") ?: ""
+        set(v) = s().edit().putString("ds_api_key", v).apply()
+
+    var showBalance: Boolean
+        get() = s().getBoolean("show_balance", false)
+        set(v) = s().edit().putBoolean("show_balance", v).apply()
 
     var lastX: Int
         get() = s().getInt("last_x", -1)

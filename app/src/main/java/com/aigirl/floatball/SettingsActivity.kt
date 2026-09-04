@@ -67,6 +67,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.switchAutoEdge.isChecked = Prefs.autoEdge
         binding.switchHello.isChecked = Prefs.showHelloOnStart
         binding.switchHeart.isChecked = Prefs.heartEnabled
+        binding.switchWander.isChecked = Prefs.wanderMode
+        binding.switchBalance.isChecked = Prefs.showBalance
+        binding.etApiKey.setText(Prefs.dsApiKey)
     }
 
     private fun setupActions() {
@@ -94,6 +97,9 @@ class SettingsActivity : AppCompatActivity() {
         Prefs.autoEdge = binding.switchAutoEdge.isChecked
         Prefs.showHelloOnStart = binding.switchHello.isChecked
         Prefs.heartEnabled = binding.switchHeart.isChecked
+        Prefs.wanderMode = binding.switchWander.isChecked
+        Prefs.showBalance = binding.switchBalance.isChecked
+        Prefs.dsApiKey = binding.etApiKey.text.toString().trim()
         Prefs.clickAction = (binding.actvClickAction.tag as? String) ?: "toolbar"
 
         Toast.makeText(this, "已保存，正在重启悬浮球…", Toast.LENGTH_SHORT).show()
