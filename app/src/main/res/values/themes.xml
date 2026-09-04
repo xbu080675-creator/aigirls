@@ -1,4 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 圆形头像样式 -->
+    <style name="ShapeAppearance.AvatarCircle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <style name="Theme.AIGirlFloatBall" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorPrimaryVariant">@color/purple_700</item>

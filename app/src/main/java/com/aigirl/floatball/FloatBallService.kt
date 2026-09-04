@@ -1,6 +1,7 @@
 package com.aigirl.floatball
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -22,24 +23,23 @@ import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
 import android.view.animation.AnimationSet
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
 import android.view.animation.OvershootInterpolator
+import android.view.animation.RotateAnimation
 import android.view.animation.ScaleAnimation
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import com.google.android.material.imageview.ShapeableImageView
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * 悬浮球前台服务
- *
- * 特性：
- *  - TYPE_APPLICATION_OVERLAY 系统级悬浮窗
- *  - 拖拽移动 + 松手自动吸附到屏幕边缘（可关闭）
- *  - 单/双击区分，单击触发 action、双击触发弹跳动画 & 爱心
- *  - 角色呼吸 / 眨眼动画
- *  - 气泡问候语（带尾巴自动朝向）
+ * 参考 DSH 鲸鱼娘功能：拖拽、工具栏（改名/重置/转圈/爱心/设置/关闭）、气泡、动画
  */
 class FloatBallService : Service() {
 
@@ -48,18 +48,17 @@ class FloatBallService : Service() {
         const val ACTION_HIDE = "com.aigirl.floatball.ACTION_HIDE"
         const val ACTION_REFRESH = "com.aigirl.floatball.ACTION_REFRESH"
         private const val NOTIF_ID = 10086
-        private const val CLICK_TIMEOUT_MS = 250L
-        private const val LONG_PRESS_MS = 600L
+        private const val CLICK_TIMEOUT_MS = 260L
         private const val BUBBLE_DURATION_MS = 3500L
         private const val EDGE_ANIM_MS = 280L
-        private const val ELASTIC_MARGIN_PX = 2
     }
 
     private lateinit var wm: WindowManager
     private var ballView: View? = null
     private var bubbleView: View? = null
+    private var toolbarView: View? = null
+    private var heartView: ImageView? = null
     private var ballParams: WindowManager.LayoutParams? = null
-    private var bubbleParams: WindowManager.LayoutParams? = null
     private val handler = Handler(Looper.getMainLooper())
     private val screenSize = Point()
 
@@ -69,15 +68,14 @@ class FloatBallService : Service() {
     private var downY = 0f
     private var startParamsX = 0
     private var startParamsY = 0
-    private var lastActionDownMs = 0L
-    private var pendingClickRunnable: Runnable? = null
+    private var movedBeyondTap = false
+    private var lastTapMs = 0L
 
-    // 动画
+    // 动画 runnables（用 token 防止重复/过期回调）
+    private var helloToken = 0
+    private var bubbleToken = 0
     private var breatheRunnable: Runnable? = null
     private var blinkRunnable: Runnable? = null
-    private var bubbleHideRunnable: Runnable? = null
-    private var longPressRunnable: Runnable? = null
-    private var movedBeyondTap = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -85,8 +83,7 @@ class FloatBallService : Service() {
         super.onCreate()
         Prefs.init(this)
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val ctx = applicationContext
-        val metrics = ctx.resources.displayMetrics
+        val metrics = applicationContext.resources.displayMetrics
         screenSize.x = metrics.widthPixels
         screenSize.y = metrics.heightPixels
         val real = android.util.DisplayMetrics()
@@ -102,17 +99,20 @@ class FloatBallService : Service() {
                 startForeground(NOTIF_ID, buildNotification())
                 showFloatBall(forceRefresh = false)
                 if (Prefs.showHelloOnStart) {
-                    handler.postDelayed({ showHelloBubble() }, 700L)
+                    helloToken++
+                    val token = helloToken
+                    handler.postDelayed({
+                        if (token == helloToken && ballView != null) showHelloBubble()
+                    }, 700L)
                 }
             }
             ACTION_HIDE -> {
+                helloToken++
                 hideFloatBall()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
-            ACTION_REFRESH -> {
-                showFloatBall(forceRefresh = true)
-            }
+            ACTION_REFRESH -> showFloatBall(forceRefresh = true)
         }
         return START_STICKY
     }
@@ -122,65 +122,58 @@ class FloatBallService : Service() {
         super.onDestroy()
     }
 
-    // ---------------- 悬浮球显示 / 隐藏 ----------------
+    // ---------- 显示/隐藏 ----------
 
     private fun showFloatBall(forceRefresh: Boolean) {
         if (ballView != null) {
-            if (forceRefresh) {
-                removeBallViewSafe()
-            } else {
-                refreshAppearance()
-                return
-            }
+            if (forceRefresh) removeBallViewSafe()
+            else { refreshAppearance(); return }
         }
         createAndAddBallView()
     }
 
     private fun hideFloatBall() {
+        helloToken++
+        bubbleToken++
         cancelAllAnimations()
+        removeToolbarSafe()
+        removeBubbleImmediate()
         removeBallViewSafe()
-        removeBubbleSafe()
     }
 
     private fun removeBallViewSafe() {
         val v = ballView ?: return
         ballView = null
-        try {
-            wm.removeView(v)
-        } catch (_: Throwable) {}
+        try { wm.removeView(v) } catch (_: Throwable) {}
     }
 
-    private fun removeBubbleSafe() {
+    private fun removeBubbleImmediate() {
         val v = bubbleView ?: return
         bubbleView = null
-        try {
-            wm.removeView(v)
-        } catch (_: Throwable) {}
+        try { wm.removeView(v) } catch (_: Throwable) {}
     }
 
-    // ---------------- 创建悬浮球 ----------------
+    private fun removeToolbarSafe() {
+        val v = toolbarView ?: return
+        toolbarView = null
+        try { wm.removeView(v) } catch (_: Throwable) {}
+    }
+
+    // ---------- 创建悬浮球 ----------
 
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
     private fun createAndAddBallView() {
-        val inflater = LayoutInflater.from(this)
-        val ball = inflater.inflate(R.layout.float_ball_layout, null, false)
-        val iv = ball.findViewById<ImageView>(R.id.ivCharacter)
-        val def = CharacterStore.find(Prefs.characterId)
-        iv.setImageResource(def.drawableRes)
+        val ball = LayoutInflater.from(this).inflate(R.layout.float_ball_layout, null, false)
+        val iv = ball.findViewById<ShapeableImageView>(R.id.ivCharacter)
+        iv.setImageResource(CharacterStore.find(Prefs.characterId).drawableRes)
 
         val size = Prefs.sizePx
         ball.layoutParams?.width = size
         ball.layoutParams?.height = size
 
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        val type = overlayType()
         val params = WindowManager.LayoutParams(
-            size, size,
-            type,
+            size, size, type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -188,7 +181,6 @@ class FloatBallService : Service() {
         )
         params.gravity = Gravity.TOP or Gravity.LEFT
 
-        // 恢复上次位置
         if (Prefs.lastX in 0..screenSize.x && Prefs.lastY in 0..screenSize.y) {
             params.x = Prefs.lastX
             params.y = Prefs.lastY
@@ -201,42 +193,38 @@ class FloatBallService : Service() {
         ballParams = params
         ballView = ball
 
-        ball.setOnTouchListener { _, event -> handleTouch(event) }
-        ball.setOnClickListener(null) // touch 处理里自己判断
+        ball.setOnTouchListener { _, e -> handleTouch(e) }
 
-        try {
-            wm.addView(ball, params)
-        } catch (t: Throwable) {
-            return
-        }
+        try { wm.addView(ball, params) } catch (_: Throwable) { return }
 
-        // 进入动画：缩放 + 淡入
         startEnterAnimation(ball)
-        startBreatheAnimation(ball.findViewById(R.id.flBallContainer))
+        startBreatheAnimation(ball.findViewById(R.id.flBallRoot))
         startBlinkRoutine()
     }
 
     private fun refreshAppearance() {
         val ball = ballView ?: return
         val size = Prefs.sizePx
-        ball.findViewById<ImageView>(R.id.ivCharacter)
+        ball.findViewById<ShapeableImageView>(R.id.ivCharacter)
             .setImageResource(CharacterStore.find(Prefs.characterId).drawableRes)
         ball.alpha = Prefs.opacity / 100f
         ballParams?.let { p ->
-            val changed = p.width != size || p.height != size
-            p.width = size
-            p.height = size
-            if (changed) safeUpdate(ball, p)
+            if (p.width != size || p.height != size) {
+                p.width = size; p.height = size
+                safeUpdate(ball, p)
+            }
         }
     }
 
     private fun safeUpdate(v: View, p: WindowManager.LayoutParams) {
-        try {
-            wm.updateViewLayout(v, p)
-        } catch (_: Throwable) {}
+        try { wm.updateViewLayout(v, p) } catch (_: Throwable) {}
     }
 
-    // ---------------- 触摸 & 拖拽 ----------------
+    private fun overlayType() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+    else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+
+    // ---------- 触摸 & 拖拽 ----------
 
     @SuppressLint("ClickableViewAccessibility")
     private fun handleTouch(e: MotionEvent): Boolean {
@@ -251,74 +239,50 @@ class FloatBallService : Service() {
                 downY = e.rawY
                 startParamsX = p.x
                 startParamsY = p.y
-
-                // 放大触感
-                val c = ball.findViewById<View>(R.id.flBallContainer)
-                c.animate().cancel()
-                c.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120L)
+                hideToolbar()
+                ball.animate().cancel()
+                ball.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120L)
                     .setInterpolator(OvershootInterpolator()).start()
-
-                // 双击判定
-                val now = System.currentTimeMillis()
-                val doubleTap = now - lastActionDownMs < 350L
-                lastActionDownMs = now
-                if (doubleTap) {
-                    // 取消即将触发的单击
-                    pendingClickRunnable?.let { handler.removeCallbacks(it) }
-                    pendingClickRunnable = null
-                    handler.post { onDoubleTap() }
-                } else {
-                    // 安排长按
-                    longPressRunnable = Runnable {
-                        if (!movedBeyondTap) onLongPress()
-                    }.also { handler.postDelayed(it, LONG_PRESS_MS) }
-                    // 安排单击（仅当没有移动）
-                    pendingClickRunnable = Runnable {
-                        if (!movedBeyondTap) onClick()
-                    }.also { handler.postDelayed(it, CLICK_TIMEOUT_MS) }
-                }
                 return true
             }
-
             MotionEvent.ACTION_MOVE -> {
                 val dx = e.rawX - downX
                 val dy = e.rawY - downY
                 if (!isDragging && (kotlin.math.abs(dx) > 10 || kotlin.math.abs(dy) > 10)) {
                     isDragging = true
                     movedBeyondTap = true
-                    // 取消点击 & 长按
-                    pendingClickRunnable?.let { handler.removeCallbacks(it) }
-                    pendingClickRunnable = null
-                    longPressRunnable?.let { handler.removeCallbacks(it) }
-                    longPressRunnable = null
-                    hideBubbleIfAny()
+                    removeBubbleImmediate()
                 }
                 if (isDragging) {
-                    val nx = startParamsX + dx.toInt()
-                    val ny = startParamsY + dy.toInt()
-                    p.x = clampX(nx, p.width)
-                    p.y = clampY(ny, p.height)
+                    p.x = clampX(startParamsX + dx.toInt(), p.width)
+                    p.y = clampY(startParamsY + dy.toInt(), p.height)
                     safeUpdate(ball, p)
                 }
                 return true
             }
-
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // 恢复缩放
-                val c = ball.findViewById<View>(R.id.flBallContainer)
-                c.animate().cancel()
-                c.animate().scaleX(1f).scaleY(1f).setDuration(150L)
+                ball.animate().cancel()
+                ball.animate().scaleX(1f).scaleY(1f).setDuration(150L)
                     .setInterpolator(DecelerateInterpolator()).start()
-
-                longPressRunnable?.let { handler.removeCallbacks(it) }
-                longPressRunnable = null
-
                 if (isDragging) {
-                    // 拖拽结束：如果启用自动贴边，做吸附动画
                     if (Prefs.autoEdge) animateToNearestEdge(ball, p)
-                    // 记住位置
                     Prefs.lastX = p.x
                     Prefs.lastY = p.y
+                } else {
+                    // 判定单击/双击
+                    val now = System.currentTimeMillis()
+                    if (now - lastTapMs < 350L) {
+                        lastTapMs = 0
+                        onDoubleTap()
+                    } else {
+                        lastTapMs = now
+                        handler.postDelayed({
+                            if (lastTapMs != 0L && System.currentTimeMillis() - lastTapMs >= CLICK_TIMEOUT_MS) {
+                                lastTapMs = 0
+                                onClick()
+                            }
+                        }, CLICK_TIMEOUT_MS + 20)
+                    }
                 }
                 return true
             }
@@ -326,159 +290,265 @@ class FloatBallService : Service() {
         return false
     }
 
-    private fun clampX(x: Int, w: Int): Int = max(0, min(screenSize.x - w, x))
-    private fun clampY(y: Int, h: Int): Int = max(0, min(screenSize.y - h, y))
+    private fun clampX(x: Int, w: Int) = max(0, min(screenSize.x - w, x))
+    private fun clampY(y: Int, h: Int) = max(0, min(screenSize.y - h, y))
 
-    // ---------------- 交互事件 ----------------
+    // ---------- 交互事件 ----------
 
     private fun onClick() {
         when (Prefs.clickAction) {
             "hello" -> showHelloBubble()
-            "settings" -> openSettingsActivity()
-            else -> {
-                // 轻动画
-                val ball = ballView ?: return
-                val c = ball.findViewById<View>(R.id.flBallContainer)
-                pulseOnce(c)
-            }
+            "settings" -> openSettings()
+            "none" -> pulseOnce()
+            else -> showToolbar() // 默认 toolbar
         }
     }
 
     private fun onDoubleTap() {
         val ball = ballView ?: return
-        val c = ball.findViewById<View>(R.id.flBallContainer)
-        c.animate().cancel()
-        c.animate()
-            .scaleX(1.2f).scaleY(1.2f)
-            .setDuration(140L)
+        ball.animate().cancel()
+        ball.animate().scaleX(1.2f).scaleY(1.2f).setDuration(140L)
             .withEndAction {
-                c.animate().scaleX(1f).scaleY(1f).setDuration(200L)
+                ball.animate().scaleX(1f).scaleY(1f).setDuration(220L)
                     .setInterpolator(OvershootInterpolator(2f)).start()
-            }
-            .setInterpolator(DecelerateInterpolator())
-            .start()
+            }.setInterpolator(DecelerateInterpolator()).start()
         showHelloBubble()
     }
 
-    private fun onLongPress() {
-        // 长按触发换角色下一个
-        val ids = CharacterStore.CHARACTERS.map { it.id }
-        val cur = ids.indexOf(Prefs.characterId).let { (it + 1) % ids.size }
-        Prefs.characterId = ids[cur]
-        refreshAppearance()
-        // 抖动一下
-        val ball = ballView ?: return
-        val c = ball.findViewById<View>(R.id.flBallContainer)
-        c.animate().cancel()
-        val base = c.rotation
-        c.animate().rotation(base + 12f).setDuration(80L).withEndAction {
-            c.animate().rotation(base - 10f).setDuration(80L).withEndAction {
-                c.animate().rotation(base).setDuration(80L).start()
-            }.start()
-        }.start()
-    }
-
-    private fun openSettingsActivity() {
-        val i = Intent(this, SettingsActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        startActivity(i)
-    }
-
-    // ---------------- 气泡（问候语） ----------------
+    // ---------- 气泡（修复重复 bug：立即移除旧气泡 + token 防过期） ----------
 
     @SuppressLint("InflateParams")
     private fun showHelloBubble() {
-        hideBubbleIfAny()
         val p = ballParams ?: return
+        // 立即移除旧气泡（关键修复：不等动画）
+        removeBubbleImmediate()
+        bubbleToken++
+
         val def = CharacterStore.find(Prefs.characterId)
         val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
-        view.findViewById<TextView>(R.id.tvBubbleText).setText(def.helloRes)
+        val text = if (Prefs.petName.isNotEmpty()) {
+            "${Prefs.petName}：${getString(def.helloRes)}"
+        } else {
+            getString(def.helloRes)
+        }
+        view.findViewById<TextView>(R.id.tvBubbleText).text = text
         view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
         val bw = view.measuredWidth
         val bh = view.measuredHeight
 
-        // 决定气泡显示方向：如果球偏左边就在球右边显示，偏右边就放左边
         val ballCenterX = p.x + p.width / 2
         val onLeftSide = ballCenterX < screenSize.x / 2
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
         val bp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
+            overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT,
         )
         bp.gravity = Gravity.TOP or Gravity.LEFT
-        if (onLeftSide) {
-            bp.x = p.x + p.width - 12
-            bp.y = max(0, p.y + p.height / 2 - bh / 2)
-        } else {
-            bp.x = max(0, p.x - bw + 12)
-            bp.y = max(0, p.y + p.height / 2 - bh / 2)
-        }
-        // 边界纠正
+        bp.x = if (onLeftSide) p.x + p.width - 12 else max(0, p.x - bw + 12)
+        bp.y = max(0, p.y + p.height / 2 - bh / 2)
         bp.x = clampX(bp.x, bw)
         bp.y = clampY(bp.y, bh)
 
-        try {
-            wm.addView(view, bp)
-        } catch (_: Throwable) { return }
+        try { wm.addView(view, bp) } catch (_: Throwable) { return }
         bubbleView = view
-        bubbleParams = bp
 
-        // 入场动画
-        val anim = AlphaAnimation(0f, 1f).apply {
-            duration = 200L
-        }
+        val anim = AlphaAnimation(0f, 1f).apply { duration = 200L }
         val scale = ScaleAnimation(
             0.7f, 1f, 0.7f, 1f,
             Animation.RELATIVE_TO_SELF, if (onLeftSide) 0f else 1f,
             Animation.RELATIVE_TO_SELF, 0.5f,
         ).apply { duration = 220L; interpolator = OvershootInterpolator() }
-        AnimationSet(true).apply {
-            addAnimation(anim); addAnimation(scale)
-            view.startAnimation(this)
-        }
+        AnimationSet(true).apply { addAnimation(anim); addAnimation(scale); view.startAnimation(this) }
 
-        bubbleHideRunnable?.let { handler.removeCallbacks(it) }
-        bubbleHideRunnable = Runnable { hideBubbleIfAny() }
-            .also { handler.postDelayed(it, BUBBLE_DURATION_MS) }
+        val token = bubbleToken
+        handler.postDelayed({
+            if (token == bubbleToken) hideBubbleAnimated()
+        }, BUBBLE_DURATION_MS)
     }
 
-    private fun hideBubbleIfAny() {
-        bubbleHideRunnable?.let { handler.removeCallbacks(it) }
-        bubbleHideRunnable = null
+    private fun hideBubbleAnimated() {
         val v = bubbleView ?: return
         val anim = AlphaAnimation(v.alpha, 0f).apply {
             duration = 180L
             setAnimationListener(object : Animation.AnimationListener {
                 override fun onAnimationStart(a: Animation?) {}
                 override fun onAnimationRepeat(a: Animation?) {}
-                override fun onAnimationEnd(a: Animation?) {
-                    removeBubbleSafe()
-                }
+                override fun onAnimationEnd(a: Animation?) { removeBubbleImmediate() }
             })
         }
         v.startAnimation(anim)
     }
 
-    // ---------------- 边缘吸附动画 ----------------
+    // ---------- DSH 风格工具栏 ----------
+
+    @SuppressLint("InflateParams")
+    private fun showToolbar() {
+        if (toolbarView != null) { hideToolbar(); return }
+        val p = ballParams ?: return
+        val tb = LayoutInflater.from(this).inflate(R.layout.float_toolbar_layout, null, false)
+
+        setupTbBtn(tb.findViewById(R.id.btnRename), R.drawable.ic_rename, R.string.tb_rename) { showRenameDialog() }
+        setupTbBtn(tb.findViewById(R.id.btnReset), R.drawable.ic_reset, R.string.tb_reset) { resetPosition() }
+        setupTbBtn(tb.findViewById(R.id.btnSpin), R.drawable.ic_spin, R.string.tb_spin) { doSpin() }
+        setupTbBtn(tb.findViewById(R.id.btnHeart), R.drawable.ic_heart, R.string.tb_heart) { doHeart() }
+        setupTbBtn(tb.findViewById(R.id.btnSettings), R.drawable.ic_tb_settings, R.string.tb_settings) { openSettings() }
+        setupTbBtn(tb.findViewById(R.id.btnClose), R.drawable.ic_close, R.string.tb_close) {
+            hideToolbar(); showFloatBall(forceRefresh = true)
+        }
+
+        tb.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val tw = tb.measuredWidth
+        val th = tb.measuredHeight
+
+        val tp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        )
+        tp.gravity = Gravity.TOP or Gravity.LEFT
+        // 工具栏显示在球的上方；若空间不够则放下方
+        val above = p.y - th - 8
+        tp.x = clampX(p.x + p.width / 2 - tw / 2, tw)
+        tp.y = if (above >= 0) above else p.y + p.height + 8
+        tp.y = clampY(tp.y, th)
+
+        try { wm.addView(tb, tp) } catch (_: Throwable) { return }
+        toolbarView = tb
+
+        val s = ScaleAnimation(0.5f, 1f, 0.5f, 1f,
+            Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 1f
+        ).apply { duration = 200L; interpolator = OvershootInterpolator() }
+        val a = AlphaAnimation(0f, 1f).apply { duration = 180L }
+        AnimationSet(true).apply { addAnimation(s); addAnimation(a); tb.startAnimation(this) }
+    }
+
+    private fun hideToolbar() {
+        val tb = toolbarView ?: return
+        val s = ScaleAnimation(1f, 0.5f, 1f, 0.5f,
+            Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 1f
+        ).apply { duration = 150L }
+        val a = AlphaAnimation(1f, 0f).apply { duration = 150L }
+        AnimationSet(true).apply {
+            addAnimation(s); addAnimation(a)
+            setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(x: Animation?) {}
+                override fun onAnimationRepeat(x: Animation?) {}
+                override fun onAnimationEnd(x: Animation?) { removeToolbarSafe() }
+            })
+            tb.startAnimation(this)
+        }
+        toolbarView = null // 立即置空防重复
+    }
+
+    private fun setupTbBtn(container: View, iconRes: Int, labelRes: Int, action: () -> Unit) {
+        container.findViewById<ImageView>(R.id.ivIcon).setImageResource(iconRes)
+        container.findViewById<TextView>(R.id.tvLabel).setText(labelRes)
+        container.setOnClickListener {
+            hideToolbar()
+            handler.postDelayed({ action() }, 160)
+        }
+    }
+
+    // ---------- 工具栏动作 ----------
+
+    @SuppressLint("InflateParams")
+    private fun showRenameDialog() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.rename_hint)
+            setText(Prefs.petName)
+            setPadding(40, 30, 40, 10)
+        }
+        val dialog = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog)
+            .setTitle(R.string.tb_rename)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                Prefs.petName = input.text.toString().trim()
+                showHelloBubble()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.window?.setType(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+        )
+        dialog.show()
+    }
+
+    private fun resetPosition() {
+        val ball = ballView ?: return
+        val p = ballParams ?: return
+        p.x = screenSize.x - p.width - 24
+        p.y = screenSize.y / 3
+        Prefs.lastX = p.x; Prefs.lastY = p.y
+        safeUpdate(ball, p)
+        if (Prefs.autoEdge) animateToNearestEdge(ball, p)
+    }
+
+    private fun doSpin() {
+        val ball = ballView ?: return
+        ball.animate().cancel()
+        ball.animate().rotationBy(360f).setDuration(500L)
+            .setInterpolator(LinearInterpolator()).start()
+    }
+
+    private fun doHeart() {
+        if (!Prefs.heartEnabled) return
+        val ball = ballView ?: return
+        val p = ballParams ?: return
+        val heart = ImageView(this).apply {
+            setImageResource(R.drawable.ic_heart)
+            layoutParams = FrameLayout.LayoutParams(60, 60)
+        }
+        val hp = WindowManager.LayoutParams(60, 60, overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                    or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT)
+        hp.gravity = Gravity.TOP or Gravity.LEFT
+        hp.x = p.x + p.width / 2 - 30
+        hp.y = p.y
+        try { wm.addView(heart, hp) } catch (_: Throwable) { return }
+        heartView = heart
+
+        heart.animate().cancel()
+        heart.animate()
+            .translationYBy(-(p.height).toFloat())
+            .scaleX(1.5f).scaleY(1.5f)
+            .alpha(0f)
+            .setDuration(900L)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                try { wm.removeView(heart) } catch (_: Throwable) {}
+                heartView = null
+            }.start()
+
+        // 球也跳一下
+        ball.animate().cancel()
+        ball.animate().scaleX(1.15f).scaleY(1.15f).setDuration(120L)
+            .withEndAction {
+                ball.animate().scaleX(1f).scaleY(1f).setDuration(150L).start()
+            }.start()
+    }
+
+    private fun openSettings() {
+        startActivity(Intent(this, SettingsActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+    }
+
+    // ---------- 边缘吸附 ----------
 
     private fun animateToNearestEdge(ball: View, p: WindowManager.LayoutParams) {
         val centerX = p.x + p.width / 2
-        val targetX = if (centerX < screenSize.x / 2) {
-            ELASTIC_MARGIN_PX
-        } else {
-            screenSize.x - p.width - ELASTIC_MARGIN_PX
-        }
+        val targetX = if (centerX < screenSize.x / 2) 2 else screenSize.x - p.width - 2
         val startX = p.x
         val delta = targetX - startX
         if (delta == 0) return
@@ -490,51 +560,43 @@ class FloatBallService : Service() {
                 if (t >= 1f) {
                     p.x = targetX
                     safeUpdate(ball, p)
-                    Prefs.lastX = p.x
-                    Prefs.lastY = p.y
+                    Prefs.lastX = p.x; Prefs.lastY = p.y
                     return
                 }
-                val eased = interp.getInterpolation(t)
-                p.x = (startX + delta * eased).roundToInt()
+                p.x = (startX + delta * interp.getInterpolation(t)).toInt()
                 safeUpdate(ball, p)
                 handler.postDelayed(this, 10L)
             }
         })
     }
 
-    // ---------------- 动画（呼吸 & 眨眼） ----------------
+    // ---------- 动画 ----------
 
     private fun startEnterAnimation(v: View) {
         val s = ScaleAnimation(0f, 1f, 0f, 1f,
-            Animation.RELATIVE_TO_SELF, 0.5f,
-            Animation.RELATIVE_TO_SELF, 0.5f).apply {
-            duration = 260L
-            interpolator = OvershootInterpolator(1.2f)
-        }
+            Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f
+        ).apply { duration = 260L; interpolator = OvershootInterpolator(1.2f) }
         val a = AlphaAnimation(0f, 1f).apply { duration = 220L }
         AnimationSet(true).apply { addAnimation(s); addAnimation(a); v.startAnimation(this) }
     }
 
-    private fun pulseOnce(v: View) {
+    private fun pulseOnce() {
+        val ball = ballView ?: return
         val s = ScaleAnimation(1f, 1.15f, 1f, 1.15f,
-            Animation.RELATIVE_TO_SELF, 0.5f,
-            Animation.RELATIVE_TO_SELF, 0.5f).apply {
+            Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f
+        ).apply {
             duration = 140L
             setAnimationListener(object : Animation.AnimationListener {
                 override fun onAnimationStart(a: Animation?) {}
                 override fun onAnimationRepeat(a: Animation?) {}
                 override fun onAnimationEnd(a: Animation?) {
-                    val back = ScaleAnimation(1.15f, 1f, 1.15f, 1f,
-                        Animation.RELATIVE_TO_SELF, 0.5f,
-                        Animation.RELATIVE_TO_SELF, 0.5f).apply {
-                        duration = 160L
-                        interpolator = AccelerateInterpolator()
-                    }
-                    v.startAnimation(back)
+                    ball.startAnimation(ScaleAnimation(1.15f, 1f, 1.15f, 1f,
+                        Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f
+                    ).apply { duration = 160L; interpolator = AccelerateInterpolator() })
                 }
             })
         }
-        v.startAnimation(s)
+        ball.startAnimation(s)
     }
 
     private fun startBreatheAnimation(target: View) {
@@ -542,18 +604,12 @@ class FloatBallService : Service() {
         breatheRunnable = object : Runnable {
             var up = true
             override fun run() {
-                val scale = if (up) 1.025f else 1.0f
+                val scale = if (up) 1.03f else 1.0f
                 up = !up
                 target.animate().cancel()
-                target.animate()
-                    .scaleX(scale).scaleY(scale)
-                    .setDuration(1600L)
-                    .setInterpolator(DecelerateInterpolator())
-                    .withEndAction {
-                        if (ballView != null) {
-                            handler.postDelayed(this, 80L)
-                        }
-                    }
+                target.animate().scaleX(scale).scaleY(scale)
+                    .setDuration(1600L).setInterpolator(DecelerateInterpolator())
+                    .withEndAction { if (ballView != null) handler.postDelayed(this, 80L) }
                     .start()
             }
         }.also { handler.postDelayed(it, 600L) }
@@ -564,18 +620,13 @@ class FloatBallService : Service() {
         val run = object : Runnable {
             override fun run() {
                 val ball = ballView ?: return
-                val c = ball.findViewById<View>(R.id.flBallContainer)
-                // 眨眼：快速压缩 Y 轴再恢复
-                c.animate().cancel()
-                c.animate().scaleY(0.2f).setDuration(80L)
+                ball.animate().cancel()
+                ball.animate().scaleY(0.15f).setDuration(80L)
                     .withEndAction {
-                        c.animate().scaleY(1f).setDuration(100L)
-                            .setInterpolator(OvershootInterpolator())
-                            .start()
-                    }
-                    .start()
-                val next = (3200..6400).random().toLong()
-                handler.postDelayed(this, next)
+                        ball.animate().scaleY(1f).setDuration(110L)
+                            .setInterpolator(OvershootInterpolator()).start()
+                    }.start()
+                handler.postDelayed(this, (3200..6400).random().toLong())
             }
         }
         blinkRunnable = run
@@ -583,21 +634,18 @@ class FloatBallService : Service() {
     }
 
     private fun cancelAllAnimations() {
-        pendingClickRunnable?.let { handler.removeCallbacks(it) }; pendingClickRunnable = null
-        longPressRunnable?.let { handler.removeCallbacks(it) }; longPressRunnable = null
-        bubbleHideRunnable?.let { handler.removeCallbacks(it) }; bubbleHideRunnable = null
         breatheRunnable?.let { handler.removeCallbacks(it) }; breatheRunnable = null
         blinkRunnable?.let { handler.removeCallbacks(it) }; blinkRunnable = null
         ballView?.clearAnimation()
         bubbleView?.clearAnimation()
+        heartView?.let { try { wm.removeView(it) } catch (_: Throwable) {} }; heartView = null
     }
 
-    // ---------------- 前台服务通知 ----------------
+    // ---------- 通知 ----------
 
     private fun buildNotification(): Notification {
         val openIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
+            this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, App.CHANNEL_ID_FOREGROUND)

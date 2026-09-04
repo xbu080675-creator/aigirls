@@ -42,7 +42,7 @@ class SettingsActivity : AppCompatActivity() {
             Prefs.characterId,
             onClick = { /* immediate UI feedback only */ }
         )
-        binding.rvCharacters.layoutManager = GridLayoutManager(this, 3)
+        binding.rvCharacters.layoutManager = GridLayoutManager(this, 4)
         binding.rvCharacters.adapter = charAdapter
     }
 
@@ -66,21 +66,22 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupSwitches() {
         binding.switchAutoEdge.isChecked = Prefs.autoEdge
         binding.switchHello.isChecked = Prefs.showHelloOnStart
+        binding.switchHeart.isChecked = Prefs.heartEnabled
     }
 
     private fun setupActions() {
         val options = listOf(
+            getString(R.string.action_toolbar),
             getString(R.string.action_hello),
             getString(R.string.action_settings),
             getString(R.string.action_none),
         )
-        val values = listOf("hello", "settings", "none")
+        val values = listOf("toolbar", "hello", "settings", "none")
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, options)
         binding.actvClickAction.setAdapter(adapter)
         val idx = values.indexOf(Prefs.clickAction).coerceAtLeast(0)
         binding.actvClickAction.setText(options[idx], false)
         binding.actvClickAction.setOnItemClickListener { _, _, i, _ ->
-            // save mapped value tag
             binding.actvClickAction.tag = values[i]
         }
         binding.actvClickAction.tag = values[idx]
@@ -92,7 +93,8 @@ class SettingsActivity : AppCompatActivity() {
         Prefs.opacity = binding.sliderOpacity.value.toInt()
         Prefs.autoEdge = binding.switchAutoEdge.isChecked
         Prefs.showHelloOnStart = binding.switchHello.isChecked
-        Prefs.clickAction = (binding.actvClickAction.tag as? String) ?: "hello"
+        Prefs.heartEnabled = binding.switchHeart.isChecked
+        Prefs.clickAction = (binding.actvClickAction.tag as? String) ?: "toolbar"
 
         Toast.makeText(this, "已保存，正在重启悬浮球…", Toast.LENGTH_SHORT).show()
 

@@ -6,8 +6,8 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
 /**
- * 角色定义 & 偏好管理
- * 所有角色素材均为原创 MIT 协议或取自 MIT 协议项目
+ * AI 拟人化角色定义 & 偏好管理
+ * 角色图片为二创风格，仅供非商业用途学习交流
  */
 data class CharacterDef(
     val id: String,
@@ -20,38 +20,31 @@ data class CharacterDef(
 object CharacterStore {
     val CHARACTERS = listOf(
         CharacterDef(
-            "whale",
-            R.drawable.char_whale_girl,
-            R.string.char_whale_name,
-            R.string.hello_whale,
+            "deepseek",
+            R.drawable.char_deepseek,
+            R.string.char_deepseek_name,
+            R.string.hello_deepseek,
             "#3B82F6",
         ),
         CharacterDef(
-            "cat",
-            R.drawable.char_cat_girl,
-            R.string.char_cat_name,
-            R.string.hello_cat,
-            "#F97316",
+            "chatgpt",
+            R.drawable.char_chatgpt,
+            R.string.char_chatgpt_name,
+            R.string.hello_chatgpt,
+            "#22C55E",
         ),
         CharacterDef(
-            "maid",
-            R.drawable.char_maid_girl,
-            R.string.char_maid_name,
-            R.string.hello_maid,
-            "#EC4899",
+            "claude",
+            R.drawable.char_claude,
+            R.string.char_claude_name,
+            R.string.hello_claude,
+            "#F59E0B",
         ),
         CharacterDef(
-            "mecha",
-            R.drawable.char_mecha_girl,
-            R.string.char_mecha_name,
-            R.string.hello_mecha,
-            "#6366F1",
-        ),
-        CharacterDef(
-            "mage",
-            R.drawable.char_mage_girl,
-            R.string.char_mage_name,
-            R.string.hello_mage,
+            "gemini",
+            R.drawable.char_gemini,
+            R.string.char_gemini_name,
+            R.string.hello_gemini,
             "#8B5CF6",
         ),
     )
@@ -71,7 +64,7 @@ object Prefs {
     private fun s() = sp
 
     var characterId: String
-        get() = s().getString("character_id", "whale") ?: "whale"
+        get() = s().getString("character_id", "deepseek") ?: "deepseek"
         set(v) = s().edit().putString("character_id", v).apply()
 
     var enabled: Boolean
@@ -79,7 +72,7 @@ object Prefs {
         set(v) = s().edit().putBoolean("enabled", v).apply()
 
     var sizePx: Int
-        get() = s().getInt("size_px", 200) // 默认 200px
+        get() = s().getInt("size_px", 200)
         set(v) = s().edit().putInt("size_px", v).apply()
 
     var opacity: Int
@@ -95,10 +88,17 @@ object Prefs {
         set(v) = s().edit().putBoolean("show_hello", v).apply()
 
     var clickAction: String
-        get() = s().getString("click_action", "hello") ?: "hello"
+        get() = s().getString("click_action", "toolbar") ?: "toolbar"
         set(v) = s().edit().putString("click_action", v).apply()
 
-    // 保存悬浮球上一次位置
+    var petName: String
+        get() = s().getString("pet_name", "") ?: ""
+        set(v) = s().edit().putString("pet_name", v).apply()
+
+    var heartEnabled: Boolean
+        get() = s().getBoolean("heart_enabled", true)
+        set(v) = s().edit().putBoolean("heart_enabled", v).apply()
+
     var lastX: Int
         get() = s().getInt("last_x", -1)
         set(v) = s().edit().putInt("last_x", v).apply()

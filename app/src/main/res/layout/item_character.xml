@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 角色选择列表项 -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardChar"
@@ -19,18 +18,12 @@
         android:gravity="center"
         android:padding="14dp">
 
-        <FrameLayout
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivCharAvatar"
             android:layout_width="72dp"
             android:layout_height="72dp"
-            android:background="@drawable/bg_character_ring_small">
-
-            <ImageView
-                android:id="@+id/ivCharAvatar"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="fitCenter"
-                android:padding="3dp" />
-        </FrameLayout>
+            android:scaleType="centerCrop"
+            app:shapeAppearance="@style/ShapeAppearance.AvatarCircle" />
 
         <TextView
             android:id="@+id/tvCharName"
@@ -40,7 +33,8 @@
             android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
-            android:maxLines="1" />
+            android:maxLines="2"
+            android:gravity="center" />
 
         <View
             android:id="@+id/vSelectedTick"

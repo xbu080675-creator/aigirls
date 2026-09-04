@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 悬浮球布局：圆形头像 + 阴影 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/flBallRoot"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
@@ -15,19 +16,11 @@
         android:background="@drawable/bg_ball_shadow" />
 
     <!-- 头像容器 -->
-    <FrameLayout
-        android:id="@+id/flBallContainer"
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/ivCharacter"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/bg_ball_ring">
-
-        <ImageView
-            android:id="@+id/ivCharacter"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="fitCenter"
-            android:padding="4dp"
-            android:contentDescription="AI娘" />
-    </FrameLayout>
+        android:scaleType="centerCrop"
+        app:shapeAppearance="@style/ShapeAppearance.AvatarCircle" />
 
 </FrameLayout>

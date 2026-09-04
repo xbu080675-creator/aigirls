@@ -1,37 +1,45 @@
 <resources>
-    <string name="app_name">AI娘悬浮球</string>
+    <string name="app_name">AI娘桌面宠物</string>
     <string name="settings">设置</string>
     <string name="start_float_ball">启动悬浮球</string>
     <string name="stop_float_ball">关闭悬浮球</string>
     <string name="request_overlay_permission">请先授予悬浮窗权限</string>
     <string name="grant_permission">去授权</string>
-    <string name="character_select">选择角色</string>
+    <string name="character_select">选择 AI 娘角色</string>
     <string name="ball_size">悬浮球大小</string>
     <string name="ball_opacity">透明度</string>
     <string name="auto_edge">自动贴边</string>
-    <string name="show_hello">显示问候语</string>
+    <string name="show_hello">启动时显示问候</string>
     <string name="click_action">点击操作</string>
     <string name="action_none">无</string>
+    <string name="action_toolbar">弹出功能栏</string>
     <string name="action_hello">弹出问候</string>
     <string name="action_settings">打开设置</string>
     <string name="about">关于</string>
-    <string name="about_text">AI娘悬浮球 v1.0\n采用 MIT 协议开源\n角色素材均为原创或取自 MIT 协议项目</string>
-    <string name="channel_name">AI娘悬浮球服务</string>
-    <string name="channel_desc">悬浮球前台服务通知</string>
+    <string name="about_text">AI娘桌面宠物 v1.1\n参考 DSH 鲸鱼娘功能\n角色为二创风格，非商业用途</string>
+    <string name="channel_name">AI娘桌面宠物服务</string>
+    <string name="channel_desc">桌面宠物前台服务通知</string>
     <string name="notification_title">AI娘陪伴中</string>
     <string name="notification_text">点击返回设置</string>
 
     <!-- 角色名字 -->
-    <string name="char_whale_name">虎鲸娘·汐</string>
-    <string name="char_cat_name">猫娘·奶糖</string>
-    <string name="char_maid_name">女仆娘·樱</string>
-    <string name="char_mecha_name">机甲娘·零</string>
-    <string name="char_mage_name">魔法娘·星</string>
+    <string name="char_deepseek_name">DeepSeek·鲸鱼娘</string>
+    <string name="char_chatgpt_name">ChatGPT·绿毛娘</string>
+    <string name="char_claude_name">Claude·橙发娘</string>
+    <string name="char_gemini_name">Gemini·彩星娘</string>
 
     <!-- 角色问候语 -->
-    <string name="hello_whale">嗨~今天要不要一起摸鱼呀~🐳</string>
-    <string name="hello_cat">喵~主人回来啦！蹭蹭~😺</string>
-    <string name="hello_maid">欢迎回来，主人！红茶已经泡好啦☕</string>
-    <string name="hello_mecha">系统在线，等待指令。⚡</string>
-    <string name="hello_mage">星之魔法，与你同在~✨</string>
+    <string name="hello_deepseek">嗨~今天要不要一起摸鱼呀~🐳</string>
+    <string name="hello_chatgpt">有什么我可以帮你的吗？我随时在线~💬</string>
+    <string name="hello_claude">你好呀，今天过得怎么样？☕</string>
+    <string name="hello_gemini">哇！见到你超开心！今天想聊点什么？✨</string>
+
+    <!-- 工具栏按钮 -->
+    <string name="tb_rename">改名</string>
+    <string name="tb_reset">重置位置</string>
+    <string name="tb_spin">转圈</string>
+    <string name="tb_heart">爱心</string>
+    <string name="tb_settings">设置</string>
+    <string name="tb_close">关闭</string>
+    <string name="rename_hint">给 AI 娘起个名字吧~</string>
 </resources>
