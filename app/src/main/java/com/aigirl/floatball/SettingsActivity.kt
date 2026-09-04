@@ -22,17 +22,22 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
-        binding = ActivitySettingsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
-        binding.toolbar.setNavigationOnClickListener { finish() }
+        try {
+            binding = ActivitySettingsBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            setSupportActionBar(binding.toolbar)
+            binding.toolbar.setNavigationOnClickListener { finish() }
 
-        setupCharacterList()
-        setupSliders()
-        setupSwitches()
-        setupActions()
+            setupCharacterList()
+            setupSliders()
+            setupSwitches()
+            setupActions()
 
-        binding.btnSaveAndRestart.setOnClickListener { saveAndRestart() }
+            binding.btnSaveAndRestart.setOnClickListener { saveAndRestart() }
+        } catch (e: Exception) {
+            Toast.makeText(this, "设置界面加载失败: ${e.message}", Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
 
     private fun setupCharacterList() {
@@ -91,37 +96,41 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun saveAndRestart() {
-        Prefs.characterId = charAdapter.getSelectedId()
-        Prefs.sizePx = (binding.sliderSize.value * density).toInt()
-        Prefs.opacity = binding.sliderOpacity.value.toInt()
-        Prefs.autoEdge = binding.switchAutoEdge.isChecked
-        Prefs.showHelloOnStart = binding.switchHello.isChecked
-        Prefs.heartEnabled = binding.switchHeart.isChecked
-        Prefs.wanderMode = binding.switchWander.isChecked
-        Prefs.showBalance = binding.switchBalance.isChecked
-        Prefs.dsApiKey = binding.etApiKey.text.toString().trim()
-        Prefs.clickAction = (binding.actvClickAction.tag as? String) ?: "toolbar"
+        try {
+            Prefs.characterId = charAdapter.getSelectedId()
+            Prefs.sizePx = (binding.sliderSize.value * density).toInt()
+            Prefs.opacity = binding.sliderOpacity.value.toInt()
+            Prefs.autoEdge = binding.switchAutoEdge.isChecked
+            Prefs.showHelloOnStart = binding.switchHello.isChecked
+            Prefs.heartEnabled = binding.switchHeart.isChecked
+            Prefs.wanderMode = binding.switchWander.isChecked
+            Prefs.showBalance = binding.switchBalance.isChecked
+            Prefs.dsApiKey = binding.etApiKey.text.toString().trim()
+            Prefs.clickAction = (binding.actvClickAction.tag as? String) ?: "toolbar"
 
-        Toast.makeText(this, "已保存，正在重启悬浮球…", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "已保存，正在重启悬浮球…", Toast.LENGTH_SHORT).show()
 
-        // 先停止再启动（需要权限 & 开关）
-        val hide = Intent(this, FloatBallService::class.java).apply {
-            action = FloatBallService.ACTION_HIDE
+            // 先停止再启动（需要权限 & 开关）
+            val hide = Intent(this, FloatBallService::class.java).apply {
+                action = FloatBallService.ACTION_HIDE
+            }
+            startService(hide)
+
+            if (Prefs.enabled) {
+                binding.root.postDelayed({
+                    val i = Intent(this, FloatBallService::class.java).apply {
+                        action = FloatBallService.ACTION_SHOW
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(i)
+                    } else {
+                        startService(i)
+                    }
+                }, 500)
+            }
+            finish()
+        } catch (e: Exception) {
+            Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_LONG).show()
         }
-        startService(hide)
-
-        if (Prefs.enabled) {
-            binding.root.postDelayed({
-                val i = Intent(this, FloatBallService::class.java).apply {
-                    action = FloatBallService.ACTION_SHOW
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(i)
-                } else {
-                    startService(i)
-                }
-            }, 400)
-        }
-        finish()
     }
 }

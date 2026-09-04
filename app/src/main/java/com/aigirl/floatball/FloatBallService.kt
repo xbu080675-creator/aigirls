@@ -34,7 +34,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationCompat
-import com.google.android.material.imageview.ShapeableImageView
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -185,7 +184,7 @@ class FloatBallService : Service() {
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
     private fun createAndAddBallView() {
         val ball = LayoutInflater.from(this).inflate(R.layout.float_ball_layout, null, false)
-        val iv = ball.findViewById<ShapeableImageView>(R.id.ivCharacter)
+        val iv = ball.findViewById<ImageView>(R.id.ivCharacter)
         iv.setImageResource(CharacterStore.find(Prefs.characterId).drawableRes)
 
         val size = Prefs.sizePx
@@ -228,7 +227,7 @@ class FloatBallService : Service() {
     private fun refreshAppearance() {
         val ball = ballView ?: return
         val size = Prefs.sizePx
-        ball.findViewById<ShapeableImageView>(R.id.ivCharacter)
+        ball.findViewById<ImageView>(R.id.ivCharacter)
             .setImageResource(CharacterStore.find(Prefs.characterId).drawableRes)
         ball.alpha = Prefs.opacity / 100f
         ballParams?.let { p ->
@@ -665,7 +664,7 @@ class FloatBallService : Service() {
     private fun switchView(@DrawableRes res: Int, mirror: Boolean) {
         if (res == 0) return
         val ball = ballView ?: return
-        val iv = ball.findViewById<ShapeableImageView>(R.id.ivCharacter)
+        val iv = ball.findViewById<ImageView>(R.id.ivCharacter)
         iv.setImageResource(res)
         iv.scaleX = if (mirror) -1f else 1f
     }
@@ -782,9 +781,13 @@ class FloatBallService : Service() {
     }
 
     private fun openSettings() {
-        startActivity(Intent(this, SettingsActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
+        try {
+            startActivity(Intent(this, SettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (e: Exception) {
+            showBubbleText("打开设置失败: ${e.message?.take(15) ?: "未知错误"}")
+        }
     }
 
     // ---------- 边缘吸附 ----------

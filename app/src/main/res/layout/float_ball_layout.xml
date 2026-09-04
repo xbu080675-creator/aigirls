@@ -1,26 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 悬浮球布局：圆形头像 + 阴影 -->
+<!-- 悬浮球布局：完整角色形象（不裁切圆形） -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/flBallRoot"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- 阴影层 -->
-    <View
-        android:id="@+id/vShadow"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginStart="4dp"
-        android:layout_marginTop="6dp"
-        android:background="@drawable/bg_ball_shadow" />
-
-    <!-- 头像容器 -->
-    <com.google.android.material.imageview.ShapeableImageView
+    <!-- 角色形象 -->
+    <ImageView
         android:id="@+id/ivCharacter"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        app:shapeAppearance="@style/ShapeAppearance.AvatarCircle" />
+        android:scaleType="fitCenter"
+        android:adjustViewBounds="true" />
 
 </FrameLayout>
