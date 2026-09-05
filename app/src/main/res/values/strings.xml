@@ -16,7 +16,7 @@
     <string name="action_hello">弹出问候</string>
     <string name="action_settings">打开设置</string>
     <string name="about">关于</string>
-    <string name="about_text">AI娘桌面宠物 v1.4.2\n鲸鱼娘·大肥鱼形象：上善无形老师 (CC BY-NC-SA 4.0)\n代码改编自 wngyj/AI_Bento (MIT)\n非商业用途</string>
+    <string name="about_text">AI娘桌面宠物 v1.4.3\n鲸鱼娘·大肥鱼形象：上善无形老师 (CC BY-NC-SA 4.0)\n代码改编自 wngyj/AI_Bento (MIT)\n非商业用途</string>
     <string name="channel_name">AI娘桌面宠物服务</string>
     <string name="channel_desc">桌面宠物前台服务通知</string>
     <string name="notification_title">AI娘陪伴中</string>
@@ -44,4 +44,10 @@
     <string name="tb_close">关闭</string>
     <string name="rename_hint">给 AI 娘起个名字吧~</string>
     <string name="chat_hint">跟大肥鱼说点什么…</string>
+
+    <!-- 梗包导入（可安装梗包引擎，v1.4.3+ 预留） -->
+    <string name="meme_pack_title">梗包管理</string>
+    <string name="meme_pack_import_zip">导入梗包 ZIP</string>
+    <string name="meme_pack_quick_add">快速添加表情包</string>
+    <string name="meme_pack_copyright_notice">请仅导入你有权使用的图片内容。用户导入内容仅保存在本机，不上传、不分发。</string>
 </resources>

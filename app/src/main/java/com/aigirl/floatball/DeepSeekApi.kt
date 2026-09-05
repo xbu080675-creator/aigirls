@@ -13,8 +13,13 @@ import java.net.URL
  */
 object DeepSeekApi {
 
-    private const val BASE = "https://api.deepseek.com/v1"
-    private const val MODEL = "deepseek-chat"
+    // 官方文档示例 base_url 即 https://api.deepseek.com，SDK 自行拼接 /chat/completions。
+    // 旧的 /v1 前缀仍能路由但不是当前推荐写法。
+    private const val BASE = "https://api.deepseek.com"
+    // deepseek-chat / deepseek-reasoner 已于 2026-07-24 15:59 UTC 全面停用，
+    // 旧名请求会直接报错。当前 Chat Completions 可用模型：deepseek-v4-flash / deepseek-v4-pro / deepseek-v4-flash-vision-exp。
+    // 桌宠场景用 flash 足够且最便宜。
+    private const val MODEL = "deepseek-v4-flash"
     private const val BALANCE_URL = "https://api.deepseek.com/user/balance"
 
     /** 按角色生成系统提示词，避免所有角色都用鲸鱼娘人设 */
@@ -46,12 +51,19 @@ object DeepSeekApi {
                     put("messages", messages)
                     put("max_tokens", 100)
                     put("temperature", 0.9)
+                    // V4 系列 thinking 默认开启且默认 effort=high，桌宠短问答不需要 CoT，
+                    // 不显式关闭会导致：1) 首 token 延迟大幅上升；2) 思考内容可能挤占 max_tokens；
+                    // 3) readTimeout 45s 也未必够。所以这里强制 disabled。
+                    // 官方 OpenAI 格式开关：{"thinking":{"type":"enabled/disabled"}}
+                    put("thinking", JSONObject().apply { put("type", "disabled") })
                 }
 
                 val conn = (URL("$BASE/chat/completions").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 12000
-                    readTimeout = 12000
+                    // 旧值 12s 在 thinking=high 时几乎必超时；即便关闭 thinking，
+                    // DeepSeek 偶发冷启动/网络抖动也需要更大余量。
+                    connectTimeout = 15000
+                    readTimeout = 45000
                     doOutput = true
                     setRequestProperty("Authorization", "Bearer $key")
                     setRequestProperty("Content-Type", "application/json")
@@ -65,8 +77,9 @@ object DeepSeekApi {
                     val reply = JSONObject(text)
                         .getJSONArray("choices").getJSONObject(0)
                         .getJSONObject("message").getString("content").trim()
-                    val short = if (reply.length > 30) reply.substring(0, 28) + "…" else reply
-                    onResult(short)
+                    // 历史/回调均保留完整 reply。气泡显示层若嫌长可自行截断，
+                    // 但多轮上下文绝不能在这里被截掉——否则后续轮次会丢失语义。
+                    onResult(reply)
                 } else {
                     val msg = try { JSONObject(text).getJSONObject("error").getString("message") } catch (_: Exception) { "HTTP $code" }
                     onError("API错误: ${msg.take(12)}")

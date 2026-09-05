@@ -119,7 +119,8 @@ class FloatBallService : Service() {
     override fun onCreate() {
         super.onCreate()
         Prefs.init(this)
-        MemeManager.load(this)
+        // v1.4.3：加载内置 + 已启用用户包（可安装梗包引擎）
+        MemePackManager.reloadAll(this)
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val metrics = applicationContext.resources.displayMetrics
         screenSize.x = metrics.widthPixels
@@ -627,7 +628,7 @@ class FloatBallService : Service() {
         if (now - lastChatMs < 30000L) {
             rapidChatCount++
             if (rapidChatCount >= 3) {
-                triggerMeme("USER_ANGRY")
+                triggerMeme(MemeManager.MemeEvent.USER_ANGRY)
                 rapidChatCount = 0
             }
         } else {
@@ -637,7 +638,10 @@ class FloatBallService : Service() {
 
         showBubbleText("思考中…", BUBBLE_PRIO_HELLO)
         val gen = serviceGen
-        DeepSeekApi.chat(Prefs.dsApiKey, msg, chatHistory, Prefs.characterId,
+        // v1.4.3：走 ProviderRegistry，不再硬编码 DeepSeekApi。
+        // 四角色里只有 deepseek 真实可用，其他三家会回调“接入开发中”。
+        ProviderRegistry.forCharacter(Prefs.characterId).chat(
+            Prefs.dsApiKey, msg, chatHistory, Prefs.characterId,
             onResult = { reply ->
                 handler.post {
                     if (gen != serviceGen) return@post // Service 已重启/销毁，作废
@@ -648,7 +652,10 @@ class FloatBallService : Service() {
                     showBubbleText(reply, BUBBLE_PRIO_ERROR)
                     // 思考时长 > 8s 触发 THINKING_LONG；否则消耗 token 梗
                     val elapsed = System.currentTimeMillis() - chatStartMs
-                    val event = if (elapsed > 8000L) "THINKING_LONG" else "TOKEN_SPENT"
+                    val event = if (elapsed > 8000L)
+                        MemeManager.MemeEvent.THINKING_LONG
+                    else
+                        MemeManager.MemeEvent.TOKEN_SPENT
                     // 梗优先级最低，回复气泡(ERROR)不会被抢；若回复已消失则梗可显示
                     handler.postDelayed({ if (gen == serviceGen) triggerMeme(event) }, BUBBLE_DURATION_MS + 200L)
                 }
@@ -662,9 +669,9 @@ class FloatBallService : Service() {
                     // 超时 / 连续失败 -> 重试梗；否则失败梗
                     val isTimeout = err.contains("超时") || err.contains("网络")
                     if (isTimeout || consecutiveErrors >= 2) {
-                        triggerMeme("API_RETRY")
+                        triggerMeme(MemeManager.MemeEvent.API_RETRY)
                     } else {
-                        triggerMeme("API_FAILED")
+                        triggerMeme(MemeManager.MemeEvent.API_FAILED)
                     }
                 }
             }
@@ -708,11 +715,11 @@ class FloatBallService : Service() {
     // ---------- 鲸鲸梗宇宙：事件 -> 文案 + 表情 pose ----------
 
     /** 触发一个事件，自动挑选对应梗图并以气泡+pose 展示 */
-    private fun triggerMeme(event: String) {
+    private fun triggerMeme(event: MemeManager.MemeEvent) {
         if (!Prefs.memeBubblesEnabled) return
-        if (!MemeManager.isLoaded()) MemeManager.load(this)
+        if (!MemeManager.isLoaded()) MemePackManager.reloadAll(this)
         if (!canShowBubble(BUBBLE_PRIO_MEME)) return
-        val meme = MemeManager.pickForEvent(event, Prefs.isDeveloperMode, Prefs.characterId) ?: return
+        val meme = MemeManager.emit(event, Prefs.characterId, Prefs.isDeveloperMode) ?: return
         showMemeBubble(meme)
     }
 
@@ -727,6 +734,21 @@ class FloatBallService : Service() {
         val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
         val prefix = if (Prefs.petName.isNotEmpty()) "${Prefs.petName}：" else ""
         view.findViewById<TextView>(R.id.tvBubbleText).text = prefix + meme.text
+        // v1.4.3：若梗图带本地图片路径（用户导入的可安装梗包），加载到 ImageView。
+        // 纯文本梗（内置包）image=null，ImageView 保持 GONE，行为不变。
+        val iv = view.findViewById<ImageView>(R.id.ivMeme)
+        val imgPath = meme.image
+        if (!imgPath.isNullOrBlank()) {
+            try {
+                val bmp = android.graphics.BitmapFactory.decodeFile(imgPath)
+                if (bmp != null) {
+                    iv.setImageBitmap(bmp)
+                    iv.visibility = View.VISIBLE
+                }
+            } catch (_: Throwable) {
+                // 图片损坏/路径无效：静默降级为纯文本梗，不让整条梗失败
+            }
+        }
         view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
         val bw = view.measuredWidth
         val bh = view.measuredHeight
@@ -858,7 +880,7 @@ class FloatBallService : Service() {
             override fun run() {
                 val idle = System.currentTimeMillis() - lastInteractMs
                 if (idle >= 60000L && ballView != null) {
-                    triggerMeme("IDLE_MOFISH")
+                    triggerMeme(MemeManager.MemeEvent.IDLE_MOFISH)
                     markInteracted() // 触发后重置，避免连续刷
                 }
                 handler.postDelayed(this, 20000L)
@@ -958,9 +980,12 @@ class FloatBallService : Service() {
     // ---------- 余额显示（统一走气泡，不再有独立绿条） ----------
 
     private fun refreshBalanceView() {
-        if (!Prefs.showBalance) return
+        // 走 provider：非 DeepSeek 角色 supportsBalance=false 直接跳过，
+        // 不会对骨架 provider 发无意义的余额请求。
+        val provider = ProviderRegistry.forCharacter(Prefs.characterId)
+        if (!Prefs.showBalance || !provider.supportsBalance) return
         val gen = serviceGen
-        DeepSeekApi.balance(Prefs.dsApiKey) { text, ok ->
+        provider.balance(Prefs.dsApiKey) { text, ok ->
             handler.post {
                 if (gen != serviceGen) return@post
                 // 余额没变就不重复冒泡，避免每 30s 刷一次同样的内容
@@ -968,7 +993,10 @@ class FloatBallService : Service() {
                     lastBalanceText = text
                     showBubbleText(text, BUBBLE_PRIO_BALANCE)
                     val low = text.contains("吃不起") || text.contains("0.00")
-                    val event = if (low) "BALANCE_LOW" else "BALANCE_OK"
+                    val event = if (low)
+                        MemeManager.MemeEvent.BALANCE_LOW
+                    else
+                        MemeManager.MemeEvent.BALANCE_OK
                     // 梗优先级低于余额，等余额气泡消失后再冒
                     handler.postDelayed({ if (gen == serviceGen) triggerMeme(event) }, BUBBLE_DURATION_MS + 200L)
                 }

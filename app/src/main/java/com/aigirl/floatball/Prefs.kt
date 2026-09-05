@@ -140,6 +140,12 @@ object Prefs {
         get() = s().getBoolean("meme_bubbles", true)
         set(v) = s().edit().putBoolean("meme_bubbles", v).apply()
 
+    /** 已启用的用户梗包 id 集合（包 id 在 pack.json 里声明）。
+     *  未启用的包虽已解压到私有目录但不参与 [MemeManager] 加载。 */
+    var enabledUserPacks: Set<String>
+        get() = s().getStringSet("enabled_user_packs", emptySet()) ?: emptySet()
+        set(v) = s().edit().putStringSet("enabled_user_packs", v).apply()
+
     var lastX: Int
         get() = s().getInt("last_x", -1)
         set(v) = s().edit().putInt("last_x", v).apply()

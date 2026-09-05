@@ -14,6 +14,18 @@
         android:paddingVertical="10dp"
         android:paddingBottom="16dp">
 
+        <!-- 可选的梗图图片（用户导入梗包的本地表情包）。纯文本梗时 GONE。 -->
+        <ImageView
+            android:id="@+id/ivMeme"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:maxWidth="200dp"
+            android:maxHeight="200dp"
+            android:layout_marginBottom="6dp"
+            android:visibility="gone"
+            android:contentDescription="梗图" />
+
         <TextView
             android:id="@+id/tvBubbleText"
             android:layout_width="wrap_content"

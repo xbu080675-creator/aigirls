@@ -3,9 +3,14 @@ package com.aigirl.floatball
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.LinearLayout
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import com.aigirl.floatball.databinding.ActivitySettingsBinding
@@ -17,6 +22,20 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var charAdapter: CharacterAdapter
+
+    // 梗包 ZIP 导入：用系统文件选择器，import 永久性 URI 权限不必要
+    private val importPackLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) {
+                val packId = MemePackManager.importPack(this, uri)
+                if (packId != null) {
+                    Toast.makeText(this, "梗包已导入：$packId", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "导入失败：找不到 pack.json 或格式错误", Toast.LENGTH_LONG).show()
+                }
+                refreshPackList()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,6 +50,7 @@ class SettingsActivity : AppCompatActivity() {
             setupSliders()
             setupSwitches()
             setupActions()
+            setupMemePacks()
 
             binding.btnSaveAndRestart.setOnClickListener { saveAndRestart() }
         } catch (e: Exception) {
@@ -93,6 +113,87 @@ class SettingsActivity : AppCompatActivity() {
         binding.spinnerClickAction.setSelection(idx)
         binding.spinnerClickAction.tag = values
     }
+
+    private fun setupMemePacks() {
+        binding.btnImportMemePack.setOnClickListener {
+            // application/zip + octet-stream 兜底；某些手机 zip 走 octet-stream
+            importPackLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
+        }
+        refreshPackList()
+    }
+
+    /** 渲染已安装梗包列表（内置 + 用户包），每包一行：名称/元信息 + 启用开关 + 删除按钮 */
+    private fun refreshPackList() {
+        val container = binding.llPackList
+        container.removeAllViews()
+        val packs = MemePackManager.listPacks(this)
+        if (packs.isEmpty()) {
+            container.addView(emptyHint("还没有已安装的用户梗包，点上方按钮导入 ZIP"))
+            return
+        }
+        for (pack in packs) {
+            container.addView(buildPackRow(pack))
+        }
+    }
+
+    private fun buildPackRow(pack: MemePackManager.PackInfo): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(8), 0, dp(8))
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        // 文本区：名称 + 元信息
+        val text = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        text.addView(TextView(this).apply {
+            this.text = if (pack.isBuiltIn) "📦 ${pack.name}" else "🗂 ${pack.name}"
+            setTextColor(getColor(R.color.text_primary))
+            textSize = 14f
+        })
+        text.addView(TextView(this).apply {
+            this.text = "${pack.author} · ${pack.license} · ${pack.itemCount} 条"
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 11f
+        })
+        row.addView(text)
+        // 启用开关（内置恒启用、不可关）
+        val sw = com.google.android.material.switchmaterial.SwitchMaterial(this).apply {
+            isChecked = pack.enabled
+            isEnabled = !pack.isBuiltIn
+            setOnCheckedChangeListener { _, checked ->
+                if (pack.isBuiltIn) return@setOnCheckedChangeListener
+                if (checked) MemePackManager.enablePack(this@SettingsActivity, pack.id)
+                else MemePackManager.disablePack(this@SettingsActivity, pack.id)
+            }
+        }
+        row.addView(sw)
+        // 删除按钮（内置不可删）
+        if (!pack.isBuiltIn) {
+            val del = com.google.android.material.button.MaterialButton(this).apply {
+                this.text = "删除"
+                setCornerRadius(dp(8))
+                setOnClickListener {
+                    MemePackManager.deletePack(this@SettingsActivity, pack.id)
+                    refreshPackList()
+                }
+            }
+            row.addView(del)
+        }
+        return row
+    }
+
+    private fun emptyHint(msg: String): View =
+        TextView(this).apply {
+            text = msg
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 12f
+            setPadding(0, dp(4), 0, dp(4))
+        }
+
+    private fun dp(v: Int): Int =
+        (v * resources.displayMetrics.density).toInt()
 
     private fun saveAndRestart() {
         try {
