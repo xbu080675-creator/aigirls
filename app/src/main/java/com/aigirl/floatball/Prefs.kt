@@ -130,6 +130,16 @@ object Prefs {
         get() = s().getBoolean("show_balance", false)
         set(v) = s().edit().putBoolean("show_balance", v).apply()
 
+    /** 开发者模式：解锁非 publicSafe 的高风险彩蛋梗图 */
+    var isDeveloperMode: Boolean
+        get() = s().getBoolean("dev_mode", false)
+        set(v) = s().edit().putBoolean("dev_mode", v).apply()
+
+    /** 梗图气泡总开关 */
+    var memeBubblesEnabled: Boolean
+        get() = s().getBoolean("meme_bubbles", true)
+        set(v) = s().edit().putBoolean("meme_bubbles", v).apply()
+
     var lastX: Int
         get() = s().getInt("last_x", -1)
         set(v) = s().edit().putInt("last_x", v).apply()

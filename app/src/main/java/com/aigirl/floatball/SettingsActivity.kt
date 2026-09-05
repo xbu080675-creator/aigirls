@@ -73,6 +73,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.switchHeart.isChecked = Prefs.heartEnabled
         binding.switchWander.isChecked = Prefs.wanderMode
         binding.switchBalance.isChecked = Prefs.showBalance
+        binding.switchMemeBubbles.isChecked = Prefs.memeBubblesEnabled
+        binding.switchDevMode.isChecked = Prefs.isDeveloperMode
         binding.etApiKey.setText(Prefs.dsApiKey)
     }
 
@@ -102,6 +104,8 @@ class SettingsActivity : AppCompatActivity() {
             Prefs.heartEnabled = binding.switchHeart.isChecked
             Prefs.wanderMode = binding.switchWander.isChecked
             Prefs.showBalance = binding.switchBalance.isChecked
+            Prefs.memeBubblesEnabled = binding.switchMemeBubbles.isChecked
+            Prefs.isDeveloperMode = binding.switchDevMode.isChecked
             Prefs.dsApiKey = binding.etApiKey.text.toString().trim()
             val values = binding.spinnerClickAction.tag as? List<String> ?: listOf("toolbar", "hello", "settings", "none")
             Prefs.clickAction = values.getOrElse(binding.spinnerClickAction.selectedItemPosition) { "toolbar" }

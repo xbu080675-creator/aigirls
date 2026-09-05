@@ -96,11 +96,20 @@ class FloatBallService : Service() {
     private var balanceView: TextView? = null
     private var balanceRunnable: Runnable? = null
 
+    // 梗图 & 状态追踪
+    private var lastChatMs = 0L
+    private var rapidChatCount = 0
+    private var idleRunnable: Runnable? = null
+    private var lastInteractMs = System.currentTimeMillis()
+    private var chatStartMs = 0L
+    private var consecutiveErrors = 0
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         Prefs.init(this)
+        MemeManager.load(this)
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val metrics = applicationContext.resources.displayMetrics
         screenSize.x = metrics.widthPixels
@@ -155,6 +164,7 @@ class FloatBallService : Service() {
         helloToken++
         bubbleToken++
         stopWander()
+        idleRunnable?.let { handler.removeCallbacks(it) }; idleRunnable = null
         balanceRunnable?.let { handler.removeCallbacks(it) }; balanceRunnable = null
         hideBalanceView()
         cancelAllAnimations()
@@ -172,6 +182,7 @@ class FloatBallService : Service() {
     private fun removeBubbleImmediate() {
         val v = bubbleView ?: return
         bubbleView = null
+        restorePose()
         try { wm.removeView(v) } catch (_: Throwable) {}
     }
 
@@ -245,6 +256,8 @@ class FloatBallService : Service() {
         startBlinkRoutine()
         startWanderIfEnabled()
         startBalanceLoop()
+        startIdleMemeRoutine()
+        markInteracted()
     }
 
     private fun refreshAppearance() {
@@ -355,6 +368,7 @@ class FloatBallService : Service() {
     // ---------- 交互事件 ----------
 
     private fun onClick() {
+        markInteracted()
         when (Prefs.clickAction) {
             "hello" -> showHelloBubble()
             "settings" -> openSettings()
@@ -364,6 +378,7 @@ class FloatBallService : Service() {
     }
 
     private fun onDoubleTap() {
+        markInteracted()
         val ball = ballView ?: return
         ball.animate().cancel()
         ball.animate().scaleX(1.2f).scaleY(1.2f).setDuration(140L)
@@ -562,17 +577,46 @@ class FloatBallService : Service() {
 
     private fun doChat(msg: String) {
         chatBusy = true
+        chatStartMs = System.currentTimeMillis()
+        markInteracted()
+        // 检测用户是否"狂发消息"（愤怒）：30s 内连续 3 次以上
+        val now = System.currentTimeMillis()
+        if (now - lastChatMs < 30000L) {
+            rapidChatCount++
+            if (rapidChatCount >= 3) {
+                triggerMeme("USER_ANGRY")
+                rapidChatCount = 0
+            }
+        } else {
+            rapidChatCount = 1
+        }
+        lastChatMs = now
+
         showBubbleText("思考中…")
         DeepSeekApi.chat(Prefs.dsApiKey, msg, chatHistory,
             onResult = { reply ->
                 chatBusy = false
+                consecutiveErrors = 0
                 chatHistory.add(msg to reply)
                 if (chatHistory.size > 40) chatHistory.removeAt(0)
                 showBubbleText(reply)
+                // 思考时长 > 8s 触发 THINKING_LONG；否则消耗 token 梗
+                // 延迟 2.5s 让用户先读到回复，再冒状态梗
+                val elapsed = System.currentTimeMillis() - chatStartMs
+                val event = if (elapsed > 8000L) "THINKING_LONG" else "TOKEN_SPENT"
+                handler.postDelayed({ triggerMeme(event) }, 2500L)
             },
             onError = { err ->
                 chatBusy = false
+                consecutiveErrors++
                 showBubbleText(err)
+                // 超时 / 连续失败 -> 重试梗；否则失败梗
+                val isTimeout = err.contains("超时") || err.contains("网络")
+                if (isTimeout || consecutiveErrors >= 2) {
+                    triggerMeme("API_RETRY")
+                } else {
+                    triggerMeme("API_FAILED")
+                }
             }
         )
     }
@@ -607,6 +651,165 @@ class FloatBallService : Service() {
         view.startAnimation(anim)
         val token = bubbleToken
         handler.postDelayed({ if (token == bubbleToken) hideBubbleAnimated() }, BUBBLE_DURATION_MS)
+    }
+
+    // ---------- 鲸鲸梗宇宙：事件 -> 文案 + 表情 pose ----------
+
+    /** 触发一个事件，自动挑选对应梗图并以气泡+pose 展示 */
+    private fun triggerMeme(event: String) {
+        if (!Prefs.memeBubblesEnabled) return
+        if (!MemeManager.isLoaded()) MemeManager.load(this)
+        val meme = MemeManager.pickForEvent(event, Prefs.isDeveloperMode) ?: return
+        showMemeBubble(meme)
+    }
+
+    /** 展示一张梗图：切换 pose + 气泡文案 */
+    private fun showMemeBubble(meme: MemeManager.Meme) {
+        val p = ballParams ?: return
+        removeBubbleImmediate()
+        applyPose(meme.pose)
+        bubbleToken++
+        val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
+        val prefix = if (Prefs.petName.isNotEmpty()) "${Prefs.petName}：" else ""
+        view.findViewById<TextView>(R.id.tvBubbleText).text = prefix + meme.text
+        view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val bw = view.measuredWidth
+        val bh = view.measuredHeight
+        val ballCenterX = p.x + p.width / 2
+        val onLeftSide = ballCenterX < screenSize.x / 2
+        val bp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                    or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT,
+        )
+        bp.gravity = Gravity.TOP or Gravity.LEFT
+        bp.x = if (onLeftSide) p.x + p.width - 12 else max(0, p.x - bw + 12)
+        bp.y = max(0, p.y + p.height / 2 - bh / 2)
+        bp.x = clampX(bp.x, bw); bp.y = clampY(bp.y, bh)
+        try { wm.addView(view, bp) } catch (_: Throwable) { return }
+        bubbleView = view
+        val anim = AlphaAnimation(0f, 1f).apply { duration = 200L }
+        val scale = ScaleAnimation(
+            0.7f, 1f, 0.7f, 1f,
+            Animation.RELATIVE_TO_SELF, if (onLeftSide) 0f else 1f,
+            Animation.RELATIVE_TO_SELF, 0.5f,
+        ).apply { duration = 220L; interpolator = OvershootInterpolator() }
+        AnimationSet(true).apply { addAnimation(anim); addAnimation(scale); view.startAnimation(this) }
+
+        val token = bubbleToken
+        handler.postDelayed({
+            if (token == bubbleToken) {
+                hideBubbleAnimated()
+                restorePose()
+            }
+        }, BUBBLE_DURATION_MS)
+    }
+
+    /**
+     * 表情 pose -> 三视图素材 + 一次性动画
+     * pose 取值：happy / smug / grievance / shocked / sneaky / caught / guilty / endure / thinking / teaching / determined
+     * 仅用现有 front/side/back 三视图 + 缩放/抖动/旋转组合出情绪
+     */
+    private fun applyPose(pose: String) {
+        val ball = ballView ?: return
+        val iv = ball.findViewById<ImageView>(R.id.ivCharacter)
+        val def = CharacterStore.find(Prefs.characterId)
+        ball.animate().cancel()
+        iv.scaleX = 1f; iv.scaleY = 1f; iv.rotation = 0f
+        when (pose) {
+            "smug" -> { // 得意：正面 + 放大
+                iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(1.12f).scaleY(1.12f).setDuration(180L)
+                    .setInterpolator(OvershootInterpolator()).start()
+            }
+            "grievance" -> { // 委屈：正面 + 微缩
+                iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(0.92f).scaleY(0.92f).setDuration(180L).start()
+            }
+            "shocked" -> { // 震惊：正面 + 快速抖动
+                iv.setImageResource(def.drawableRes)
+                shakeOnce(ball)
+            }
+            "sneaky" -> { // 摸鱼/偷吃：侧面
+                if (def.hasThreeViews) iv.setImageResource(def.sideRes) else iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(0.98f).scaleY(0.98f).setDuration(150L).start()
+            }
+            "caught" -> { // 被抓包：背面 + 抖动
+                if (def.hasThreeViews) iv.setImageResource(def.backRes) else iv.setImageResource(def.drawableRes)
+                shakeOnce(ball)
+            }
+            "guilty" -> { // 心虚：正面 + 缩小半透明
+                iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(0.85f).scaleY(0.85f).alpha(0.7f).setDuration(200L).start()
+            }
+            "endure" -> { // 忍耐：正面 + 慢速小抖动
+                iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(0.97f).scaleY(0.97f).setDuration(300L).start()
+                handler.postDelayed({ shakeOnce(ball) }, 150)
+            }
+            "thinking" -> { // 思考：正面 + 微倾
+                iv.setImageResource(def.drawableRes)
+                ball.animate().rotation(-4f).setDuration(200L).start()
+            }
+            "teaching", "determined" -> { // 教学/坚定：正面 + 放大
+                iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(1.1f).scaleY(1.1f).setDuration(180L)
+                    .setInterpolator(DecelerateInterpolator()).start()
+            }
+            else -> { // happy / 默认：正面
+                iv.setImageResource(def.drawableRes)
+                ball.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150L)
+                    .setInterpolator(OvershootInterpolator()).start()
+            }
+        }
+    }
+
+    /** 快速左右抖动一次 */
+    private fun shakeOnce(v: View) {
+        v.animate().cancel()
+        v.animate().translationX(-12f).setDuration(60L)
+            .withEndAction {
+                v.animate().translationX(12f).setDuration(60L)
+                    .withEndAction {
+                        v.animate().translationX(0f).setDuration(60L).start()
+                    }.start()
+            }.start()
+    }
+
+    /** 恢复默认正面姿态（气泡消失时调用） */
+    private fun restorePose() {
+        val ball = ballView ?: return
+        val iv = ball.findViewById<ImageView>(R.id.ivCharacter)
+        ball.animate().cancel()
+        ball.animate().scaleX(1f).scaleY(1f).alpha(1f).rotation(0f).translationX(0f)
+            .setDuration(200L).setInterpolator(DecelerateInterpolator()).start()
+        iv.scaleX = 1f
+        if (!isWandering) iv.setImageResource(CharacterStore.find(Prefs.characterId).drawableRes)
+    }
+
+    /** 更新最后交互时间（点击/聊天/拖拽时调用） */
+    private fun markInteracted() {
+        lastInteractMs = System.currentTimeMillis()
+    }
+
+    /** 空闲摸鱼检测：超过 60s 无交互则触发 IDLE_MOFISH */
+    private fun startIdleMemeRoutine() {
+        idleRunnable?.let { handler.removeCallbacks(it) }
+        idleRunnable = object : Runnable {
+            override fun run() {
+                val idle = System.currentTimeMillis() - lastInteractMs
+                if (idle >= 60000L && ballView != null) {
+                    triggerMeme("IDLE_MOFISH")
+                    markInteracted() // 触发后重置，避免连续刷
+                }
+                handler.postDelayed(this, 20000L)
+            }
+        }
+        handler.postDelayed(idleRunnable!!, 60000L)
     }
 
     // ---------- 散步模式 & 三视图切换 ----------
@@ -699,7 +902,7 @@ class FloatBallService : Service() {
 
     private fun refreshBalanceView() {
         if (!Prefs.showBalance) { hideBalanceView(); return }
-        val p = ballParams ?: return
+        if (ballParams == null) return
         if (balanceView == null) {
             val tv = TextView(this).apply {
                 setTextColor(0xFFFFFFFF.toInt())
@@ -728,6 +931,11 @@ class FloatBallService : Service() {
                 balanceView?.text = text
                 balanceView?.setBackgroundColor(if (ok) 0xE616A34A.toInt() else 0xE6DC2626.toInt())
                 syncBalancePosition() // 文本变了重新居中
+                // 余额状态梗：>=1 元触发 BALANCE_OK，否则 BALANCE_LOW
+                if (ok) {
+                    val low = text.contains("吃不起") || text.contains("0.00")
+                    triggerMeme(if (low) "BALANCE_LOW" else "BALANCE_OK")
+                }
             }
         }
     }
