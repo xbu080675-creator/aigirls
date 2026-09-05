@@ -16,7 +16,7 @@
     <string name="action_hello">弹出问候</string>
     <string name="action_settings">打开设置</string>
     <string name="about">关于</string>
-    <string name="about_text">AI娘桌面宠物 v1.4.0\n鲸鱼娘·大肥鱼形象：上善无形老师 (CC BY-NC-SA 4.0)\n代码改编自 wngyj/AI_Bento (MIT)\n非商业用途</string>
+    <string name="about_text">AI娘桌面宠物 v1.4.1\n鲸鱼娘·大肥鱼形象：上善无形老师 (CC BY-NC-SA 4.0)\n代码改编自 wngyj/AI_Bento (MIT)\n非商业用途</string>
     <string name="channel_name">AI娘桌面宠物服务</string>
     <string name="channel_desc">桌面宠物前台服务通知</string>
     <string name="notification_title">AI娘陪伴中</string>
