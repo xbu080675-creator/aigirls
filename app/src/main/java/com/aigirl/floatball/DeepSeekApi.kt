@@ -1,5 +1,6 @@
 package com.aigirl.floatball
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -36,14 +37,30 @@ object DeepSeekApi {
              onResult: (String) -> Unit, onError: (String) -> Unit) {
         if (key.isBlank()) { onError("请先在设置里填写 DeepSeek API Key"); return }
         Thread {
-            val messages = mutableListOf<Map<String, String>>()
-            messages.add(mapOf("role" to "system", "content" to systemPrompt(characterId)))
+            // 显式用 JSONArray + JSONObject 构造 messages。
+            // 绝对不能用 JSONObject.put("messages", List<Map>) —— Android 的 org.json
+            // 对 List<Map> 不会自动转成 JSONArray，而是调用 toString() 变成
+            // "[{role=system, content=...}]" 字符串，导致服务端 400 "expected a sequence"。
+            val messages = JSONArray()
+            messages.put(JSONObject().apply {
+                put("role", "system")
+                put("content", systemPrompt(characterId))
+            })
             val take = history.takeLast(20)
             for ((u, a) in take) {
-                messages.add(mapOf("role" to "user", "content" to u))
-                messages.add(mapOf("role" to "assistant", "content" to a))
+                messages.put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", u)
+                })
+                messages.put(JSONObject().apply {
+                    put("role", "assistant")
+                    put("content", a)
+                })
             }
-            messages.add(mapOf("role" to "user", "content" to userMsg))
+            messages.put(JSONObject().apply {
+                put("role", "user")
+                put("content", userMsg)
+            })
 
             // 单次请求：返回 Triple(成功?, 回复或错误消息, HTTP状态码)
             fun postRequest(payload: JSONObject): Triple<Boolean, String, Int> {
