@@ -36,61 +36,91 @@ object DeepSeekApi {
              onResult: (String) -> Unit, onError: (String) -> Unit) {
         if (key.isBlank()) { onError("请先在设置里填写 DeepSeek API Key"); return }
         Thread {
-            try {
-                val messages = mutableListOf<Map<String, String>>()
-                messages.add(mapOf("role" to "system", "content" to systemPrompt(characterId)))
-                val take = history.takeLast(20)
-                for ((u, a) in take) {
-                    messages.add(mapOf("role" to "user", "content" to u))
-                    messages.add(mapOf("role" to "assistant", "content" to a))
-                }
-                messages.add(mapOf("role" to "user", "content" to userMsg))
+            val messages = mutableListOf<Map<String, String>>()
+            messages.add(mapOf("role" to "system", "content" to systemPrompt(characterId)))
+            val take = history.takeLast(20)
+            for ((u, a) in take) {
+                messages.add(mapOf("role" to "user", "content" to u))
+                messages.add(mapOf("role" to "assistant", "content" to a))
+            }
+            messages.add(mapOf("role" to "user", "content" to userMsg))
 
-                val payload = JSONObject().apply {
+            // 单次请求：返回 Triple(成功?, 回复或错误消息, HTTP状态码)
+            fun postRequest(payload: JSONObject): Triple<Boolean, String, Int> {
+                return try {
+                    val conn = (URL("$BASE/chat/completions").openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 15000
+                        readTimeout = 60000
+                        doOutput = true
+                        setRequestProperty("Authorization", "Bearer $key")
+                        setRequestProperty("Content-Type", "application/json")
+                        setRequestProperty("Accept", "application/json")
+                    }
+                    OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use {
+                        it.write(payload.toString())
+                        it.flush()
+                    }
+                    val code = conn.responseCode
+                    val body = if (code == 200) conn.inputStream else conn.errorStream
+                    val text = BufferedReader(InputStreamReader(body, Charsets.UTF_8)).use { it.readText() }
+                    if (code == 200) {
+                        val reply = JSONObject(text)
+                            .getJSONArray("choices").getJSONObject(0)
+                            .getJSONObject("message").getString("content").trim()
+                        Triple(true, reply, code)
+                    } else {
+                        val msg = try {
+                            JSONObject(text).getJSONObject("error").getString("message")
+                        } catch (_: Exception) { text.take(200) }
+                        Triple(false, msg, code)
+                    }
+                } catch (e: java.net.SocketTimeoutException) {
+                    Triple(false, "请求超时，检查网络", 0)
+                } catch (e: java.net.UnknownHostException) {
+                    Triple(false, "网络不可用", 0)
+                } catch (e: Exception) {
+                    Triple(false, "${e.javaClass.simpleName}: ${e.message ?: "未知错误"}", 0)
+                }
+            }
+
+            // 第一次尝试：带 thinking=disabled（V4 默认 effort=high 太慢，桌宠不需要 CoT）
+            val payload1 = JSONObject().apply {
+                put("model", MODEL)
+                put("messages", messages)
+                put("max_tokens", 256)
+                // 去掉 temperature：思考模式下不生效，非思考模式去掉可减少 400 面
+                put("thinking", JSONObject().apply { put("type", "disabled") })
+            }
+            val (ok1, msg1, code1) = postRequest(payload1)
+            if (ok1) {
+                onResult(msg1)
+                return@Thread
+            }
+
+            // 若第一次失败是 400 反序列化错误（"Failed to deserialize..."），
+            // 说明 thinking 参数在当前模型/网关下不被接受，自动 fallback 到不带 thinking。
+            // 此时用默认思考模式（enabled + high effort），把 max_tokens 放大避免被思考挤占。
+            val isDeserializeError = code1 == 400 && msg1.contains("deserialize", ignoreCase = true)
+            if (isDeserializeError) {
+                val payload2 = JSONObject().apply {
                     put("model", MODEL)
                     put("messages", messages)
-                    put("max_tokens", 100)
-                    put("temperature", 0.9)
-                    // V4 系列 thinking 默认开启且默认 effort=high，桌宠短问答不需要 CoT，
-                    // 不显式关闭会导致：1) 首 token 延迟大幅上升；2) 思考内容可能挤占 max_tokens；
-                    // 3) readTimeout 45s 也未必够。所以这里强制 disabled。
-                    // 官方 OpenAI 格式开关：{"thinking":{"type":"enabled/disabled"}}
-                    put("thinking", JSONObject().apply { put("type", "disabled") })
+                    put("max_tokens", 512)
+                    // 不带 thinking：走默认 enabled + high effort
                 }
-
-                val conn = (URL("$BASE/chat/completions").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    // 旧值 12s 在 thinking=high 时几乎必超时；即便关闭 thinking，
-                    // DeepSeek 偶发冷启动/网络抖动也需要更大余量。
-                    connectTimeout = 15000
-                    readTimeout = 45000
-                    doOutput = true
-                    setRequestProperty("Authorization", "Bearer $key")
-                    setRequestProperty("Content-Type", "application/json")
+                val (ok2, msg2, code2) = postRequest(payload2)
+                if (ok2) {
+                    onResult(msg2)
+                    return@Thread
                 }
-                OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(payload.toString()) }
-
-                val code = conn.responseCode
-                val body = if (code == 200) conn.inputStream else conn.errorStream
-                val text = BufferedReader(InputStreamReader(body, Charsets.UTF_8)).use { it.readText() }
-                if (code == 200) {
-                    val reply = JSONObject(text)
-                        .getJSONArray("choices").getJSONObject(0)
-                        .getJSONObject("message").getString("content").trim()
-                    // 历史/回调均保留完整 reply。气泡显示层若嫌长可自行截断，
-                    // 但多轮上下文绝不能在这里被截掉——否则后续轮次会丢失语义。
-                    onResult(reply)
-                } else {
-                    val msg = try { JSONObject(text).getJSONObject("error").getString("message") } catch (_: Exception) { "HTTP $code" }
-                    onError("API错误: ${msg.take(12)}")
-                }
-            } catch (e: java.net.SocketTimeoutException) {
-                onError("请求超时，检查网络")
-            } catch (e: java.net.UnknownHostException) {
-                onError("网络不可用")
-            } catch (e: Exception) {
-                onError("请求失败: ${e.message?.take(12) ?: "未知错误"}")
+                // fallback 也失败：展示第二次的错误（更可能是真实问题）
+                onError("API错误 $code2: $msg2")
+                return@Thread
             }
+
+            // 非反序列化错误（401/402/429/500 等）：直接展示第一次的完整错误
+            onError("API错误 $code1: $msg1")
         }.start()
     }
 
