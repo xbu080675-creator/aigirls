@@ -92,9 +92,9 @@ class FloatBallService : Service() {
     private val chatHistory = mutableListOf<Pair<String, String>>()
     private var chatBusy = false
 
-    // 余额标签
-    private var balanceView: TextView? = null
+    // 余额（统一走气泡显示，不再有独立绿条）
     private var balanceRunnable: Runnable? = null
+    private var lastBalanceText = ""
 
     // 梗图 & 状态追踪
     private var lastChatMs = 0L
@@ -166,7 +166,6 @@ class FloatBallService : Service() {
         stopWander()
         idleRunnable?.let { handler.removeCallbacks(it) }; idleRunnable = null
         balanceRunnable?.let { handler.removeCallbacks(it) }; balanceRunnable = null
-        hideBalanceView()
         cancelAllAnimations()
         removeAllToolbars()
         removeBubbleImmediate()
@@ -276,18 +275,6 @@ class FloatBallService : Service() {
 
     private fun safeUpdate(v: View, p: WindowManager.LayoutParams) {
         try { wm.updateViewLayout(v, p) } catch (_: Throwable) {}
-        if (v === ballView) syncBalancePosition()
-    }
-
-    /** 让余额标签跟随球的位置移动 */
-    private fun syncBalancePosition() {
-        val tv = balanceView ?: return
-        val p = ballParams ?: return
-        tv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        val lp = tv.layoutParams as WindowManager.LayoutParams
-        lp.x = p.x + p.width / 2 - tv.measuredWidth / 2
-        lp.y = p.y + p.height + 4
-        try { wm.updateViewLayout(tv, lp) } catch (_: Throwable) {}
     }
 
     private fun overlayType() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -898,51 +885,21 @@ class FloatBallService : Service() {
         iv.scaleX = if (mirror) -1f else 1f
     }
 
-    // ---------- 余额显示 ----------
+    // ---------- 余额显示（统一走气泡，不再有独立绿条） ----------
 
     private fun refreshBalanceView() {
-        if (!Prefs.showBalance) { hideBalanceView(); return }
-        if (ballParams == null) return
-        if (balanceView == null) {
-            val tv = TextView(this).apply {
-                setTextColor(0xFFFFFFFF.toInt())
-                setBackgroundColor(0xE616A34A.toInt())
-                setPadding(16, 6, 16, 6)
-                textSize = 11f
-            }
-            val lp = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                overlayType(),
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-                        or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                PixelFormat.TRANSLUCENT,
-            )
-            lp.gravity = Gravity.TOP or Gravity.LEFT
-            try { wm.addView(tv, lp) } catch (_: Throwable) { return }
-            balanceView = tv
-        }
-        val tv = balanceView ?: return
-        tv.text = "吃token中…"
-        syncBalancePosition()
+        if (!Prefs.showBalance) return
         DeepSeekApi.balance(Prefs.dsApiKey) { text, ok ->
             handler.post {
-                balanceView?.text = text
-                balanceView?.setBackgroundColor(if (ok) 0xE616A34A.toInt() else 0xE6DC2626.toInt())
-                syncBalancePosition() // 文本变了重新居中
-                // 余额状态梗：>=1 元触发 BALANCE_OK，否则 BALANCE_LOW
-                if (ok) {
+                // 余额没变就不重复冒泡，避免每 30s 刷一次同样的内容
+                if (ok && text != lastBalanceText) {
+                    lastBalanceText = text
+                    showBubbleText(text)
                     val low = text.contains("吃不起") || text.contains("0.00")
                     triggerMeme(if (low) "BALANCE_LOW" else "BALANCE_OK")
                 }
             }
         }
-    }
-
-    private fun hideBalanceView() {
-        balanceView?.let { try { wm.removeView(it) } catch (_: Throwable) {} }
-        balanceView = null
     }
 
     private fun startBalanceLoop() {
