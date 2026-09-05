@@ -263,6 +263,18 @@ class FloatBallService : Service() {
 
     private fun safeUpdate(v: View, p: WindowManager.LayoutParams) {
         try { wm.updateViewLayout(v, p) } catch (_: Throwable) {}
+        if (v === ballView) syncBalancePosition()
+    }
+
+    /** 让余额标签跟随球的位置移动 */
+    private fun syncBalancePosition() {
+        val tv = balanceView ?: return
+        val p = ballParams ?: return
+        tv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val lp = tv.layoutParams as WindowManager.LayoutParams
+        lp.x = p.x + p.width / 2 - tv.measuredWidth / 2
+        lp.y = p.y + p.height + 4
+        try { wm.updateViewLayout(tv, lp) } catch (_: Throwable) {}
     }
 
     private fun overlayType() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -709,15 +721,13 @@ class FloatBallService : Service() {
             balanceView = tv
         }
         val tv = balanceView ?: return
-        tv.text = "余额查询中…"
-        val lp = tv.layoutParams as WindowManager.LayoutParams
-        lp.x = p.x + p.width / 2 - 60
-        lp.y = p.y + p.height + 4
-        safeUpdate(tv, lp)
+        tv.text = "吃token中…"
+        syncBalancePosition()
         DeepSeekApi.balance(Prefs.dsApiKey) { text, ok ->
             handler.post {
                 balanceView?.text = text
                 balanceView?.setBackgroundColor(if (ok) 0xE616A34A.toInt() else 0xE6DC2626.toInt())
+                syncBalancePosition() // 文本变了重新居中
             }
         }
     }

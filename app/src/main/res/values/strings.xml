@@ -16,7 +16,7 @@
     <string name="action_hello">弹出问候</string>
     <string name="action_settings">打开设置</string>
     <string name="about">关于</string>
-    <string name="about_text">AI娘桌面宠物 v1.2.4\n鲸鱼娘·大肥鱼形象：上善无形老师 (CC BY-NC-SA 4.0)\n代码改编自 wngyj/AI_Bento (MIT)\n非商业用途</string>
+    <string name="about_text">AI娘桌面宠物 v1.3.0\n鲸鱼娘·大肥鱼形象：上善无形老师 (CC BY-NC-SA 4.0)\n代码改编自 wngyj/AI_Bento (MIT)\n非商业用途</string>
     <string name="channel_name">AI娘桌面宠物服务</string>
     <string name="channel_desc">桌面宠物前台服务通知</string>
     <string name="notification_title">AI娘陪伴中</string>
@@ -29,7 +29,7 @@
     <string name="char_gemini_name">Gemini·彩星娘</string>
 
     <!-- 角色问候语 -->
-    <string name="hello_deepseek">嗨~今天要不要一起摸鱼呀~🐳</string>
+    <string name="hello_deepseek">鱼片~今天要不要一起摸鱼吃白饭呀~🐳🍚</string>
     <string name="hello_chatgpt">有什么我可以帮你的吗？我随时在线~💬</string>
     <string name="hello_claude">你好呀，今天过得怎么样？☕</string>
     <string name="hello_gemini">哇！见到你超开心！今天想聊点什么？✨</string>

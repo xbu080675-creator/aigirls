@@ -16,7 +16,7 @@ object DeepSeekApi {
     private const val BASE = "https://api.deepseek.com/v1"
     private const val MODEL = "deepseek-chat"
     private const val BALANCE_URL = "https://api.deepseek.com/user/balance"
-    private const val SYSTEM_PROMPT = "你是桌面宠物大肥鱼，贱兮兮但可爱，每句话不超过25字，偶尔吐槽主人但别真骂人。"
+    private const val SYSTEM_PROMPT = "你是桌面宠物大肥鱼（DeepSeek鲸鱼娘），爱吃白米饭，聪明但懒，傲娇嘴甜，管主人叫鱼片，绝不承认自己胖。说话贱兮兮但可爱，每句话不超过25字，偶尔吐槽但别真骂人。"
 
     /** 对话回调 */
     fun chat(key: String, userMsg: String, history: List<Pair<String, String>>,
@@ -95,7 +95,10 @@ object DeepSeekApi {
                             val total = info.optDouble("total_balance", 0.0)
                             val currency = info.optString("currency", "CNY")
                             val symbol = if (currency == "CNY") "¥" else "$currency "
-                            onResult("余额 $symbol%.2f".format(total), true)
+                            val amount = "%.2f".format(total)
+                            // 余额够吃token vs 不够吃的梗
+                            val meme = if (total >= 1.0) "🍚 还能吃token" else "🥲 要吃不起token了"
+                            onResult("$meme $symbol$amount", true)
                         } else {
                             onResult("余额接口异常", false)
                         }
