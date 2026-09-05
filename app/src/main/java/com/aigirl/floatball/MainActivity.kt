@@ -27,6 +27,10 @@ class MainActivity : AppCompatActivity() {
             refreshStates()
             if (canDrawOverlays() && Prefs.enabled) {
                 startFloatBall()
+            } else if (!canDrawOverlays()) {
+                // 权限被拒，关闭开关，避免 Prefs.enabled 假为 true
+                Prefs.enabled = false
+                binding.switchEnable.isChecked = false
             }
         }
 

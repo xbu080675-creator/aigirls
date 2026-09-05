@@ -6,13 +6,11 @@ import org.json.JSONObject
 /**
  * 鲸鲸梗宇宙 - 梗图管理器
  *
- * 职责：
- * 1. 从 res/raw/meme_pack.json 加载 20 张梗图元数据
- * 2. 按事件（BALANCE_OK / THINKING_LONG ...）筛选候选梗
- * 3. 按权重随机抽取 + 冷却控制（避免同一张频繁出现）
- * 4. 非 publicSafe 的彩蛋梗仅在开发者模式下可见
- *
- * 设计参考：用户整理的 5 大类梗图（余额/思考/出错/人设/视觉反应）
+ * 选择算法（v1.4.2 重写）：
+ * 1. 事件匹配 → 2. 安全过滤(publicSafe/开发者模式) → 3. 角色过滤(character)
+ * 4. 冷却过滤（全部在冷却中则返回 null，不再绕过）
+ * 5. 全局权重随机：effectiveWeight = weight * (10 - priority)
+ *    —— 优先级是软偏置不是硬过滤，低优先级(数字大)的彩蛋仍有小概率被抽中
  */
 object MemeManager {
 
@@ -28,12 +26,13 @@ object MemeManager {
         val cooldownSec: Long,
         val publicSafe: Boolean,
         val weight: Int,
+        val character: String, // "all" 或角色 id（deepseek/chatgpt/claude/gemini）
     )
 
     private var memes: List<Meme> = emptyList()
     private val lastShown = mutableMapOf<String, Long>() // memeId -> 上次展示时间戳(ms)
 
-    /** 加载梗库（在 Application/Service onCreate 中调用一次即可） */
+    /** 加载梗库 */
     fun load(context: Context) {
         if (memes.isNotEmpty()) return
         try {
@@ -60,6 +59,7 @@ object MemeManager {
                         cooldownSec = o.optLong("cooldown", 600L),
                         publicSafe = o.optBoolean("publicSafe", true),
                         weight = o.optInt("weight", 5),
+                        character = o.optString("character", "all"),
                     )
                 )
             }
@@ -69,16 +69,15 @@ object MemeManager {
         }
     }
 
-    /** 是否已加载 */
     fun isLoaded(): Boolean = memes.isNotEmpty()
 
     /**
      * 为指定事件挑选一张梗图
-     * @param event 事件名，如 BALANCE_OK
-     * @param developerMode 是否开启开发者模式（决定非 publicSafe 彩蛋是否可见）
-     * @return 选中的 Meme；若无可用则返回 null
+     * @param event 事件名
+     * @param developerMode 是否开发者模式（解锁非 publicSafe 彩蛋）
+     * @param characterId 当前角色 id，用于过滤角色专属梗
      */
-    fun pickForEvent(event: String, developerMode: Boolean = false): Meme? {
+    fun pickForEvent(event: String, developerMode: Boolean = false, characterId: String = "all"): Meme? {
         if (memes.isEmpty()) return null
         val now = System.currentTimeMillis()
 
@@ -86,33 +85,38 @@ object MemeManager {
         val matched = memes.filter { event in it.trigger }
         if (matched.isEmpty()) return null
 
-        // 2. 安全过滤：非 publicSafe 仅在开发者模式可见
+        // 2. 安全过滤
         val safe = matched.filter { it.publicSafe || developerMode }
         if (safe.isEmpty()) return null
 
-        // 3. 冷却过滤：cooldownSec 内不重复
-        val cooled = safe.filter { m ->
+        // 3. 角色过滤：character 为 "all" 或匹配当前角色
+        val charFiltered = safe.filter { it.character == "all" || it.character == characterId }
+        if (charFiltered.isEmpty()) return null
+
+        // 4. 冷却过滤：全部在冷却中 → 返回 null（不再绕过冷却，避免刷屏）
+        val cooled = charFiltered.filter { m ->
             val last = lastShown[m.id] ?: 0L
             now - last >= m.cooldownSec * 1000L
         }
-        val pool = cooled.ifEmpty { safe } // 全在冷却中则放宽（仍展示）
+        if (cooled.isEmpty()) return null
 
-        // 4. 按优先级分组，取最高优先级组
-        val maxPriority = pool.minOf { it.priority }
-        val top = pool.filter { it.priority == maxPriority }
-
-        // 5. 权重随机抽取
-        val totalWeight = top.sumOf { it.weight }
-        if (totalWeight <= 0) return top.firstOrNull()
+        // 5. 全局权重随机：effectiveWeight = weight * (10 - priority)
+        //    优先级是软偏置，priority=9 的彩蛋仍有 (10-9)=1x 的基础权重机会
+        val totalWeight = cooled.sumOf { it.weight * (10 - it.priority.coerceAtMost(9)) }
+        if (totalWeight <= 0) {
+            val fallback = cooled.first()
+            lastShown[fallback.id] = now
+            return fallback
+        }
         var r = (0 until totalWeight).random()
-        for (m in top) {
-            r -= m.weight
+        for (m in cooled) {
+            r -= m.weight * (10 - m.priority.coerceAtMost(9))
             if (r < 0) {
                 lastShown[m.id] = now
                 return m
             }
         }
-        val fallback = top.first()
+        val fallback = cooled.first()
         lastShown[fallback.id] = now
         return fallback
     }
@@ -122,6 +126,5 @@ object MemeManager {
         lastShown.clear()
     }
 
-    /** 调试：获取所有梗（用于设置界面预览） */
     fun allMemes(): List<Meme> = memes
 }

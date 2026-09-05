@@ -53,11 +53,18 @@ class FloatBallService : Service() {
         private const val CLICK_TIMEOUT_MS = 260L
         private const val BUBBLE_DURATION_MS = 3500L
         private const val EDGE_ANIM_MS = 280L
+
+        // 气泡优先级（数值越小优先级越高，低优先级不能抢高优先级）
+        const val BUBBLE_PRIO_ERROR = 1    // API 错误、聊天回复
+        const val BUBBLE_PRIO_BALANCE = 2  // 余额
+        const val BUBBLE_PRIO_HELLO = 3    // 问候
+        const val BUBBLE_PRIO_MEME = 4     // 梗图
     }
 
     private lateinit var wm: WindowManager
     private var ballView: View? = null
     private var bubbleView: View? = null
+    private var currentBubblePriority = Int.MAX_VALUE
     private var toolbarView: View? = null
     // 追踪所有已 addView 到 WindowManager 的工具栏，防止幽灵窗口泄漏
     private val toolbarViews = mutableSetOf<View>()
@@ -65,6 +72,9 @@ class FloatBallService : Service() {
     private var ballParams: WindowManager.LayoutParams? = null
     private val handler = Handler(Looper.getMainLooper())
     private val screenSize = Point()
+
+    // Service 代际 token：hideFloatBall 时自增，用于作废所有延迟回调
+    private var serviceGen = 0L
 
     // 触摸 & 拖拽
     private var isDragging = false
@@ -122,7 +132,15 @@ class FloatBallService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        // START_STICKY 重启时 intent 为 null：若用户曾启用，恢复桌宠
+        if (intent?.action == null) {
+            if (Prefs.enabled) {
+                startForeground(NOTIF_ID, buildNotification())
+                showFloatBall(forceRefresh = false)
+            }
+            return START_STICKY
+        }
+        when (intent.action) {
             ACTION_SHOW -> {
                 startForeground(NOTIF_ID, buildNotification())
                 showFloatBall(forceRefresh = false)
@@ -161,8 +179,10 @@ class FloatBallService : Service() {
     }
 
     private fun hideFloatBall() {
+        serviceGen++ // 作废所有挂起的延迟回调
         helloToken++
         bubbleToken++
+        currentBubblePriority = Int.MAX_VALUE
         stopWander()
         idleRunnable?.let { handler.removeCallbacks(it) }; idleRunnable = null
         balanceRunnable?.let { handler.removeCallbacks(it) }; balanceRunnable = null
@@ -170,6 +190,7 @@ class FloatBallService : Service() {
         removeAllToolbars()
         removeBubbleImmediate()
         removeBallViewSafe()
+        ballParams = null
     }
 
     private fun removeBallViewSafe() {
@@ -181,6 +202,8 @@ class FloatBallService : Service() {
     private fun removeBubbleImmediate() {
         val v = bubbleView ?: return
         bubbleView = null
+        currentBubblePriority = Int.MAX_VALUE
+        v.clearAnimation()
         restorePose()
         try { wm.removeView(v) } catch (_: Throwable) {}
     }
@@ -243,12 +266,16 @@ class FloatBallService : Service() {
         }
 
         ball.alpha = Prefs.opacity / 100f
-        ballParams = params
-        ballView = ball
-
         ball.setOnTouchListener { _, e -> handleTouch(e) }
 
-        try { wm.addView(ball, params) } catch (_: Throwable) { return }
+        // 先 addView，成功后才赋值 ballView/ballParams，避免权限撤销后假存活
+        try {
+            wm.addView(ball, params)
+        } catch (_: Throwable) {
+            return
+        }
+        ballView = ball
+        ballParams = params
 
         startEnterAnimation(ball)
         startBreatheAnimation(ball.findViewById(R.id.flBallRoot))
@@ -275,6 +302,28 @@ class FloatBallService : Service() {
 
     private fun safeUpdate(v: View, p: WindowManager.LayoutParams) {
         try { wm.updateViewLayout(v, p) } catch (_: Throwable) {}
+    }
+
+    /** 气泡跟随角色移动：散步/拖拽时同步气泡位置 */
+    private fun syncBubblePosition() {
+        val bv = bubbleView ?: return
+        val p = ballParams ?: return
+        bv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val bw = bv.measuredWidth
+        val bh = bv.measuredHeight
+        val bp = bv.layoutParams as? WindowManager.LayoutParams ?: return
+        val ballCenterX = p.x + p.width / 2
+        val onLeftSide = ballCenterX < screenSize.x / 2
+        bp.x = if (onLeftSide) p.x + p.width - 12 else max(0, p.x - bw + 12)
+        bp.y = max(0, p.y + p.height / 2 - bh / 2)
+        bp.x = clampX(bp.x, bw)
+        bp.y = clampY(bp.y, bh)
+        try { wm.updateViewLayout(bv, bp) } catch (_: Throwable) {}
+    }
+
+    /** 低优先级气泡不能抢占高优先级气泡 */
+    private fun canShowBubble(priority: Int): Boolean {
+        return ballView != null && priority <= currentBubblePriority
     }
 
     private fun overlayType() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -312,9 +361,11 @@ class FloatBallService : Service() {
                     removeBubbleImmediate()
                 }
                 if (isDragging) {
+                    markInteracted()
                     p.x = clampX(startParamsX + dx.toInt(), p.width)
                     p.y = clampY(startParamsY + dy.toInt(), p.height)
                     safeUpdate(ball, p)
+                    syncBubblePosition()
                 }
                 return true
             }
@@ -380,10 +431,12 @@ class FloatBallService : Service() {
 
     @SuppressLint("InflateParams")
     private fun showHelloBubble() {
+        if (!canShowBubble(BUBBLE_PRIO_HELLO)) return
         val p = ballParams ?: return
         // 立即移除旧气泡（关键修复：不等动画）
         removeBubbleImmediate()
         bubbleToken++
+        currentBubblePriority = BUBBLE_PRIO_HELLO
 
         val def = CharacterStore.find(Prefs.characterId)
         val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
@@ -438,7 +491,10 @@ class FloatBallService : Service() {
             setAnimationListener(object : Animation.AnimationListener {
                 override fun onAnimationStart(a: Animation?) {}
                 override fun onAnimationRepeat(a: Animation?) {}
-                override fun onAnimationEnd(a: Animation?) { removeBubbleImmediate() }
+                override fun onAnimationEnd(a: Animation?) {
+                    // 只删除自己捕获到的那个 view，避免误删期间新建的气泡
+                    if (bubbleView === v) removeBubbleImmediate()
+                }
             })
         }
         v.startAnimation(anim)
@@ -579,39 +635,48 @@ class FloatBallService : Service() {
         }
         lastChatMs = now
 
-        showBubbleText("思考中…")
-        DeepSeekApi.chat(Prefs.dsApiKey, msg, chatHistory,
+        showBubbleText("思考中…", BUBBLE_PRIO_HELLO)
+        val gen = serviceGen
+        DeepSeekApi.chat(Prefs.dsApiKey, msg, chatHistory, Prefs.characterId,
             onResult = { reply ->
-                chatBusy = false
-                consecutiveErrors = 0
-                chatHistory.add(msg to reply)
-                if (chatHistory.size > 40) chatHistory.removeAt(0)
-                showBubbleText(reply)
-                // 思考时长 > 8s 触发 THINKING_LONG；否则消耗 token 梗
-                // 延迟 2.5s 让用户先读到回复，再冒状态梗
-                val elapsed = System.currentTimeMillis() - chatStartMs
-                val event = if (elapsed > 8000L) "THINKING_LONG" else "TOKEN_SPENT"
-                handler.postDelayed({ triggerMeme(event) }, 2500L)
+                handler.post {
+                    if (gen != serviceGen) return@post // Service 已重启/销毁，作废
+                    chatBusy = false
+                    consecutiveErrors = 0
+                    chatHistory.add(msg to reply)
+                    if (chatHistory.size > 40) chatHistory.removeAt(0)
+                    showBubbleText(reply, BUBBLE_PRIO_ERROR)
+                    // 思考时长 > 8s 触发 THINKING_LONG；否则消耗 token 梗
+                    val elapsed = System.currentTimeMillis() - chatStartMs
+                    val event = if (elapsed > 8000L) "THINKING_LONG" else "TOKEN_SPENT"
+                    // 梗优先级最低，回复气泡(ERROR)不会被抢；若回复已消失则梗可显示
+                    handler.postDelayed({ if (gen == serviceGen) triggerMeme(event) }, BUBBLE_DURATION_MS + 200L)
+                }
             },
             onError = { err ->
-                chatBusy = false
-                consecutiveErrors++
-                showBubbleText(err)
-                // 超时 / 连续失败 -> 重试梗；否则失败梗
-                val isTimeout = err.contains("超时") || err.contains("网络")
-                if (isTimeout || consecutiveErrors >= 2) {
-                    triggerMeme("API_RETRY")
-                } else {
-                    triggerMeme("API_FAILED")
+                handler.post {
+                    if (gen != serviceGen) return@post
+                    chatBusy = false
+                    consecutiveErrors++
+                    showBubbleText(err, BUBBLE_PRIO_ERROR)
+                    // 超时 / 连续失败 -> 重试梗；否则失败梗
+                    val isTimeout = err.contains("超时") || err.contains("网络")
+                    if (isTimeout || consecutiveErrors >= 2) {
+                        triggerMeme("API_RETRY")
+                    } else {
+                        triggerMeme("API_FAILED")
+                    }
                 }
             }
         )
     }
 
-    private fun showBubbleText(text: String) {
+    private fun showBubbleText(text: String, priority: Int = BUBBLE_PRIO_ERROR) {
+        if (!canShowBubble(priority)) return
         val p = ballParams ?: return
         removeBubbleImmediate()
         bubbleToken++
+        currentBubblePriority = priority
         val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
         view.findViewById<TextView>(R.id.tvBubbleText).text = text
         view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
@@ -646,16 +711,19 @@ class FloatBallService : Service() {
     private fun triggerMeme(event: String) {
         if (!Prefs.memeBubblesEnabled) return
         if (!MemeManager.isLoaded()) MemeManager.load(this)
-        val meme = MemeManager.pickForEvent(event, Prefs.isDeveloperMode) ?: return
+        if (!canShowBubble(BUBBLE_PRIO_MEME)) return
+        val meme = MemeManager.pickForEvent(event, Prefs.isDeveloperMode, Prefs.characterId) ?: return
         showMemeBubble(meme)
     }
 
     /** 展示一张梗图：切换 pose + 气泡文案 */
     private fun showMemeBubble(meme: MemeManager.Meme) {
+        if (!canShowBubble(BUBBLE_PRIO_MEME)) return
         val p = ballParams ?: return
         removeBubbleImmediate()
         applyPose(meme.pose)
         bubbleToken++
+        currentBubblePriority = BUBBLE_PRIO_MEME
         val view = LayoutInflater.from(this).inflate(R.layout.float_bubble_layout, null, false)
         val prefix = if (Prefs.petName.isNotEmpty()) "${Prefs.petName}：" else ""
         view.findViewById<TextView>(R.id.tvBubbleText).text = prefix + meme.text
@@ -845,10 +913,12 @@ class FloatBallService : Service() {
         if (p.x <= 0 || p.x >= screenSize.x - p.width || p.y <= 0 || p.y >= screenSize.y - p.height) {
             wanderStepsLeft = 0
             safeUpdate(ball, p)
+            syncBubblePosition()
             scheduleNextWander()
             return
         }
         safeUpdate(ball, p)
+        syncBubblePosition()
         wanderStepsLeft--
         if (wanderStepsLeft > 0) {
             handler.postDelayed({ wanderTick() }, 30L)
@@ -889,14 +959,18 @@ class FloatBallService : Service() {
 
     private fun refreshBalanceView() {
         if (!Prefs.showBalance) return
+        val gen = serviceGen
         DeepSeekApi.balance(Prefs.dsApiKey) { text, ok ->
             handler.post {
+                if (gen != serviceGen) return@post
                 // 余额没变就不重复冒泡，避免每 30s 刷一次同样的内容
                 if (ok && text != lastBalanceText) {
                     lastBalanceText = text
-                    showBubbleText(text)
+                    showBubbleText(text, BUBBLE_PRIO_BALANCE)
                     val low = text.contains("吃不起") || text.contains("0.00")
-                    triggerMeme(if (low) "BALANCE_LOW" else "BALANCE_OK")
+                    val event = if (low) "BALANCE_LOW" else "BALANCE_OK"
+                    // 梗优先级低于余额，等余额气泡消失后再冒
+                    handler.postDelayed({ if (gen == serviceGen) triggerMeme(event) }, BUBBLE_DURATION_MS + 200L)
                 }
             }
         }
@@ -995,11 +1069,13 @@ class FloatBallService : Service() {
                 if (t >= 1f) {
                     p.x = targetX
                     safeUpdate(ball, p)
+                    syncBubblePosition()
                     Prefs.lastX = p.x; Prefs.lastY = p.y
                     return
                 }
                 p.x = (startX + delta * interp.getInterpolation(t)).toInt()
                 safeUpdate(ball, p)
+                syncBubblePosition()
                 handler.postDelayed(this, 10L)
             }
         })

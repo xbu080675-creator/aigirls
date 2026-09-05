@@ -182,7 +182,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="• 首次使用需授予悬浮窗权限\n• 拖动悬浮球可自由移动位置\n• 松手后会自动吸附到屏幕侧边\n• 单击可触发设置的交互动作\n• 在设置中可切换 5 种 AI 娘角色"
+                    android:text="• 首次使用需授予悬浮窗权限\n• 拖动悬浮球可自由移动位置\n• 松手后会自动吸附到屏幕侧边\n• 单击可触发设置的交互动作\n• 在设置中可切换 4 种 AI 娘角色"
                     android:textSize="13sp"
                     android:lineSpacingExtra="4dp"
                     android:textColor="@color/text_secondary" />

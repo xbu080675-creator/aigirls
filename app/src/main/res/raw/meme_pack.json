@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "pack_name": "whale_girl_meme_universe",
-  "description": "鲸鲸梗宇宙 - 20 张梗图映射到桌宠真实状态",
+  "description": "鲸鲸梗宇宙 - 20 张梗图映射到桌宠真实状态（character: all=全角色通用, deepseek=仅鲸鱼娘）",
   "events": [
     "BALANCE_OK",
     "BALANCE_LOW",
@@ -23,7 +23,8 @@
       "priority": 2,
       "cooldown": 1800,
       "publicSafe": true,
-      "weight": 8
+      "weight": 8,
+      "character": "deepseek"
     },
     {
       "id": "balance_go_eat",
@@ -35,7 +36,8 @@
       "priority": 2,
       "cooldown": 2400,
       "publicSafe": true,
-      "weight": 6
+      "weight": 6,
+      "character": "deepseek"
     },
     {
       "id": "token_steal",
@@ -47,7 +49,8 @@
       "priority": 3,
       "cooldown": 1500,
       "publicSafe": true,
-      "weight": 7
+      "weight": 7,
+      "character": "all"
     },
     {
       "id": "token_steal_caught",
@@ -59,7 +62,8 @@
       "priority": 3,
       "cooldown": 3600,
       "publicSafe": true,
-      "weight": 4
+      "weight": 4,
+      "character": "all"
     },
     {
       "id": "balance_scared_bill",
@@ -71,7 +75,8 @@
       "priority": 2,
       "cooldown": 1200,
       "publicSafe": true,
-      "weight": 6
+      "weight": 6,
+      "character": "all"
     },
     {
       "id": "thinking_knowledge_cutoff",
@@ -83,7 +88,8 @@
       "priority": 3,
       "cooldown": 1800,
       "publicSafe": true,
-      "weight": 5
+      "weight": 5,
+      "character": "all"
     },
     {
       "id": "thinking_big_study",
@@ -95,7 +101,8 @@
       "priority": 3,
       "cooldown": 1500,
       "publicSafe": true,
-      "weight": 6
+      "weight": 6,
+      "character": "all"
     },
     {
       "id": "thinking_13s_placeholder",
@@ -107,7 +114,8 @@
       "priority": 3,
       "cooldown": 600,
       "publicSafe": true,
-      "weight": 7
+      "weight": 7,
+      "character": "all"
     },
     {
       "id": "thinking_v41_early",
@@ -119,7 +127,8 @@
       "priority": 3,
       "cooldown": 2400,
       "publicSafe": true,
-      "weight": 4
+      "weight": 4,
+      "character": "deepseek"
     },
     {
       "id": "thinking_closed_source",
@@ -131,7 +140,8 @@
       "priority": 3,
       "cooldown": 3000,
       "publicSafe": true,
-      "weight": 3
+      "weight": 3,
+      "character": "deepseek"
     },
     {
       "id": "thinking_make_it_up",
@@ -143,7 +153,8 @@
       "priority": 9,
       "cooldown": 86400,
       "publicSafe": false,
-      "weight": 1
+      "weight": 1,
+      "character": "all"
     },
     {
       "id": "error_user_angry",
@@ -155,7 +166,8 @@
       "priority": 1,
       "cooldown": 900,
       "publicSafe": true,
-      "weight": 8
+      "weight": 8,
+      "character": "all"
     },
     {
       "id": "error_messed_up",
@@ -167,7 +179,8 @@
       "priority": 1,
       "cooldown": 1200,
       "publicSafe": true,
-      "weight": 7
+      "weight": 7,
+      "character": "all"
     },
     {
       "id": "error_delay_patience",
@@ -179,7 +192,8 @@
       "priority": 2,
       "cooldown": 1500,
       "publicSafe": true,
-      "weight": 6
+      "weight": 6,
+      "character": "deepseek"
     },
     {
       "id": "error_calm_down",
@@ -191,7 +205,8 @@
       "priority": 2,
       "cooldown": 1000,
       "publicSafe": true,
-      "weight": 6
+      "weight": 6,
+      "character": "all"
     },
     {
       "id": "error_keep_user",
@@ -203,7 +218,8 @@
       "priority": 3,
       "cooldown": 3600,
       "publicSafe": true,
-      "weight": 3
+      "weight": 3,
+      "character": "all"
     },
     {
       "id": "persona_strongest",
@@ -215,7 +231,8 @@
       "priority": 4,
       "cooldown": 3000,
       "publicSafe": true,
-      "weight": 4
+      "weight": 4,
+      "character": "all"
     },
     {
       "id": "persona_you_rushed",
@@ -227,7 +244,8 @@
       "priority": 4,
       "cooldown": 1800,
       "publicSafe": true,
-      "weight": 5
+      "weight": 5,
+      "character": "all"
     },
     {
       "id": "persona_name_repeat",
@@ -239,7 +257,8 @@
       "priority": 5,
       "cooldown": 2400,
       "publicSafe": true,
-      "weight": 3
+      "weight": 3,
+      "character": "all"
     },
     {
       "id": "persona_blue_fat_fish",
@@ -251,7 +270,8 @@
       "priority": 5,
       "cooldown": 3600,
       "publicSafe": true,
-      "weight": 3
+      "weight": 3,
+      "character": "deepseek"
     }
   ]
 }

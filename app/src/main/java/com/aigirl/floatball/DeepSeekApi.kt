@@ -16,16 +16,24 @@ object DeepSeekApi {
     private const val BASE = "https://api.deepseek.com/v1"
     private const val MODEL = "deepseek-chat"
     private const val BALANCE_URL = "https://api.deepseek.com/user/balance"
-    private const val SYSTEM_PROMPT = "你是桌面宠物大肥鱼（DeepSeek鲸鱼娘），爱吃白米饭，聪明但懒，傲娇嘴甜，管主人叫鱼片，绝不承认自己胖。说话贱兮兮但可爱，每句话不超过25字，偶尔吐槽但别真骂人。"
+
+    /** 按角色生成系统提示词，避免所有角色都用鲸鱼娘人设 */
+    private fun systemPrompt(characterId: String): String = when (characterId) {
+        "deepseek" -> "你是桌面宠物大肥鱼（DeepSeek鲸鱼娘），爱吃白米饭，聪明但懒，傲娇嘴甜，管主人叫鱼片，绝不承认自己胖。说话贱兮兮但可爱，每句话不超过25字，偶尔吐槽但别真骂人。"
+        "chatgpt" -> "你是桌面宠物ChatGPT娘，知识渊博但爱啰嗦，经常自信地胡说八道，管主人叫用户，每句话不超过25字，语气友好带点话痨。"
+        "claude" -> "你是桌面宠物Claude娘，温柔细腻，爱写诗和长文，管主人叫人类，每句话不超过25字，语气安静体贴。"
+        "gemini" -> "你是桌面宠物Gemini娘，活泼好奇，喜欢尝试新事物，管主人叫伙计，每句话不超过25字，语气轻快有活力。"
+        else -> "你是桌面宠物AI娘，性格可爱，每句话不超过25字。"
+    }
 
     /** 对话回调 */
-    fun chat(key: String, userMsg: String, history: List<Pair<String, String>>,
+    fun chat(key: String, userMsg: String, history: List<Pair<String, String>>, characterId: String,
              onResult: (String) -> Unit, onError: (String) -> Unit) {
         if (key.isBlank()) { onError("请先在设置里填写 DeepSeek API Key"); return }
         Thread {
             try {
                 val messages = mutableListOf<Map<String, String>>()
-                messages.add(mapOf("role" to "system", "content" to SYSTEM_PROMPT))
+                messages.add(mapOf("role" to "system", "content" to systemPrompt(characterId)))
                 val take = history.takeLast(20)
                 for ((u, a) in take) {
                     messages.add(mapOf("role" to "user", "content" to u))

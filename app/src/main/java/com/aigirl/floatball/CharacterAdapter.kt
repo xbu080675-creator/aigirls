@@ -49,7 +49,8 @@ class CharacterAdapter(
             if (selectedId != item.id) {
                 val old = selectedId
                 selectedId = item.id
-                notifyItemChanged(list.indexOfFirst { it.id == old })
+                val oldIdx = list.indexOfFirst { it.id == old }
+                if (oldIdx >= 0) notifyItemChanged(oldIdx)
                 notifyItemChanged(holder.bindingAdapterPosition)
             }
             onClick(item)
